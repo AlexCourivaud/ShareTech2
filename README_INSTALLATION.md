@@ -12,6 +12,15 @@ Création des fichiers front :
 
 docker run --rm -v "${PWD}/frontend:/app" -w /app node:22-alpine sh -c "npx create-react-app . --template minimal"
 
+
+lancement test docker : 
+docker-compose up --build
+
+
+
+
+
+
 Note : nettoyage docker :
 
 - Arrêter tous les containers en cours
