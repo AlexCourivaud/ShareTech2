@@ -17,7 +17,13 @@ lancement test docker :
 docker-compose up --build
 
 
+Migrations des modeles : 
 
+docker-compose exec backend python manage.py makemigrations accounts
+docker-compose exec backend python manage.py makemigrations core
+docker-compose exec backend python manage.py makemigrations tasks
+docker-compose exec backend python manage.py makemigrations notifications
+docker-compose exec backend python manage.py makemigrations attachments
 
 
 
@@ -34,3 +40,8 @@ docker-compose down -v
 - Nettoyage complet du système Docker
 
 docker system prune -a -f
+
+
+on relance l'installation du docker :  
+
+docker-compose up --build -d
