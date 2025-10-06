@@ -51,6 +51,7 @@
 │  - Logique métier                                       │
 │  - Authentification & Permissions                       │
 │  - API REST                                             │
+│  - User Django par défaut + UserProfile (OneToOne)      │
 └─────────────────────────────────────────────────────────┘
                           │
                           ▼ ORM Django
@@ -112,6 +113,8 @@
    **ide** : VSCODE
    **terminal** : powershell 
    **Authentification** : Sessions Django par défaut
+   **Gestion utilisateurs** : User Django par défaut + UserProfile (OneToOne) avec rôles
+
 
 ---
 
@@ -120,27 +123,38 @@
 ### 4.1 Table USER - Utilisateurs
 
 ```
-USER
+USER (auth_user - Table Django par défaut)
 ├── id                    INTEGER PRIMARY KEY AUTO_INCREMENT
-├── username              VARCHAR(50) UNIQUE NOT NULL
-├── email                 VARCHAR(100) UNIQUE NOT NULL
-├── password_hash         VARCHAR(255) NOT NULL
-├── first_name            VARCHAR(50) NOT NULL
-├── last_name             VARCHAR(50) NOT NULL
-├── role                  ENUM('junior', 'senior', 'lead', 'admin') DEFAULT 'junior'
-├── avatar_url            VARCHAR(255) NULL
+├── username              VARCHAR(150) UNIQUE NOT NULL
+├── email                 VARCHAR(254) NOT NULL
+├── password              VARCHAR(128) NOT NULL  (hash bcrypt)
+├── first_name            VARCHAR(150) NOT NULL
+├── last_name             VARCHAR(150) NOT NULL
 ├── is_active             BOOLEAN DEFAULT TRUE
+├── is_staff              BOOLEAN DEFAULT FALSE
+├── is_superuser          BOOLEAN DEFAULT FALSE
 ├── date_joined           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-├── last_login            TIMESTAMP NULL
-├── created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-└── updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+└── last_login            TIMESTAMP NULLIndex:
 
-Index:
-- idx_user_role (role)
-- idx_user_active (is_active)
+- idx_user_username (username)
+- idx_user_email (email)
 ```
 
-### 4.2 Table PROJECT - Projets
+### 4.2 Table USER_PROFILE - Profils utilisateurs
+```
+USER_PROFILE
+├── id                    INTEGER PRIMARY KEY AUTO_INCREMENT
+├── user_id               INTEGER UNIQUE NOT NULL → USER.id [CASCADE]
+├── role                  ENUM('junior', 'senior', 'lead', 'admin') DEFAULT 'junior'
+├── avatar_url            VARCHAR(255) NULL
+└── created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+Index:
+
+idx_userprofile_user (user_id)
+idx_userprofile_role (role)
+```
+
+### 4.3 Table PROJECT - Projets
 
 ```
 PROJECT
@@ -157,7 +171,7 @@ Index:
 - idx_project_created_by (created_by)
 ```
 
-### 4.3 Table PROJECT_MEMBER - Membres de projet
+### 4.4 Table PROJECT_MEMBER - Membres de projet
 
 ```
 PROJECT_MEMBER
@@ -175,7 +189,7 @@ Index:
 - idx_project_member_user (user_id)
 ```
 
-### 4.4 Table NOTE - Notes
+### 4.5 Table NOTE - Notes
 
 ```
 NOTE
@@ -201,7 +215,7 @@ Index:
 - idx_note_project_status (project_id, status) [composite]
 ```
 
-### 4.5 Table TASK - Tâches
+### 4.6 Table TASK - Tâches
 
 ```
 TASK
@@ -230,7 +244,7 @@ Index:
 - idx_task_status_due (status, due_date) [composite]
 ```
 
-### 4.6 Table TAG - Étiquettes
+### 4.7 Table TAG - Étiquettes
 
 ```
 TAG
@@ -245,7 +259,7 @@ Index:
 - idx_tag_usage (usage_count)
 ```
 
-### 4.7 Table NOTE_TAG - Classification notes (N:M)
+### 4.8 Table NOTE_TAG - Classification notes (N:M)
 
 ```
 NOTE_TAG
@@ -256,7 +270,7 @@ NOTE_TAG
 PRIMARY KEY (note_id, tag_id)
 ```
 
-### 4.8 Table TASK_TAG - Classification tâches (N:M)
+### 4.9 Table TASK_TAG - Classification tâches (N:M)
 
 ```
 TASK_TAG
@@ -267,7 +281,7 @@ TASK_TAG
 PRIMARY KEY (task_id, tag_id)
 ```
 
-### 4.9 Table COMMENT - Commentaires
+### 4.10 Table COMMENT - Commentaires
 
 ```
 COMMENT
@@ -287,7 +301,7 @@ Index:
 - idx_comment_parent (parent_comment_id)
 ```
 
-### 4.10 Table ATTACHMENT - Fichiers joints
+### 4.11 Table ATTACHMENT - Fichiers joints
 
 ```
 ATTACHMENT
@@ -312,7 +326,7 @@ Index:
 - idx_attachment_uploaded_by (uploaded_by)
 ```
 
-### 4.11 Table NOTIFICATION - Notifications
+### 4.12 Table NOTIFICATION - Notifications
 
 ```
 NOTIFICATION
@@ -340,17 +354,18 @@ Index:
 - idx_notification_user_unread (user_id, is_read) [composite]
 ```
 
-### 4.12 Schéma Relationnel Global
+### 4.13 Schéma Relationnel Global
 
 ```
-USER (1,n) ──creates──> PROJECT (1,1)
-USER (1,n) ──belongs_to──> PROJECT (0,n) [via PROJECT_MEMBER]
-USER (1,n) ──authors──> NOTE (1,1)
-USER (0,1) ──assigned_to──> TASK (1,n)
-USER (1,n) ──creates──> TASK (1,1)
-USER (1,n) ──authors──> COMMENT (1,1)
-USER (1,n) ──uploads──> ATTACHMENT (1,1)
-USER (1,n) ──receives──> NOTIFICATION (1,1)
+USER (1,1) ←──has_profile──→ USER_PROFILE (1,1)
+USER (1,n) ──creates──→ PROJECT (1,1)
+USER (1,n) ──belongs_to──→ PROJECT (0,n) [via PROJECT_MEMBER]
+USER (1,n) ──authors──→ NOTE (1,1)
+USER (0,1) ──assigned_to──→ TASK (1,n)
+USER (1,n) ──creates──→ TASK (1,1)
+USER (1,n) ──authors──→ COMMENT (1,1)
+USER (1,n) ──uploads──→ ATTACHMENT (1,1)
+USER (1,n) ──receives──→ NOTIFICATION (1,1)
 
 PROJECT (1,n) ──contains──> NOTE (1,1)
 PROJECT (1,n) ──contains──> TASK (1,1)
@@ -365,10 +380,10 @@ COMMENT (0,1) ──replies_to──> COMMENT (0,n) [self-referencing]
 COMMENT (1,n) ──has──> ATTACHMENT (0,n)
 ```
 
-### 4.13 Règles de Suppression (ON DELETE)
+### 4.14 Règles de Suppression (ON DELETE)
 
 **CASCADE** - Suppression en cascade :
-- USER → PROJECT, NOTE, TASK, COMMENT, ATTACHMENT, NOTIFICATION, PROJECT_MEMBER
+- USER → USER_PROFILE, PROJECT, NOTE, TASK, COMMENT, ATTACHMENT, NOTIFICATION, PROJECT_MEMBER
 - PROJECT → NOTE, TASK, PROJECT_MEMBER
 - NOTE → COMMENT, ATTACHMENT, NOTE_TAG
 - TASK → TASK_TAG
@@ -395,7 +410,7 @@ backend/
 │   └── wsgi.py                 # Point d'entrée WSGI
 │
 ├── accounts/                   # Feature #1 - Authentification & Utilisateurs
-│   ├── models.py               # User (étendu)
+│   ├── models.py               # UserProfile (OneToOne avec User Django)
 │   ├── serializers.py
 │   ├── views.py
 │   ├── urls.py
@@ -563,7 +578,7 @@ frontend/
 
 | Feature | Responsabilité | Models | Priorité |
 |---------|---------------|--------|----------|
-| **accounts** | Authentification et gestion utilisateurs | User |  #1 ESSENTIEL |
+| **accounts** | Authentification et gestion utilisateurs | UserProfile |  #1 ESSENTIEL |
 | **projects** | Projets collaboratifs et membres | Project, ProjectMember |  #2 ESSENTIEL |
 | **tags** | Tags partagés pour classification | Tag |  #3 TRANSVERSAL |
 | **notes** | Notes | Note, NoteTag |  #4 CORE |

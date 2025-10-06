@@ -48,3 +48,8 @@ staticfiles/
 # Python
 venv/
 env/
+
+# Misc 
+sharetech_achitecture.txt
+sharetech_sumup.md
+starting a project.md
