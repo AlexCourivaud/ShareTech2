@@ -1,0 +1,1439 @@
+    related_note = models.ForeignKey('notes
+
+**Dépendances** : accounts, projects, notes, tasks, comments
+
+#### ✅ Fichiers à implémenter
+```
+tags/
+├── __init__.py
+├── apps.py
+├── admin.py                    # Admin Tag
+├── models.py                   # Tag
+├── serializers.py              # TagSerializer
+├── views.py                    # TagViewSet
+├── urls.py                     # Routes /api/tags/*
+├── tests/
+│   ├── test_tag_model.py
+│   └── test_tag_api.py
+└── migrations/
+    └── 0001_initial.py
+```
+
+#### 🎯 Model à créer
+```python
+# models.py
+class Tag(models.Model):
+    """Tag pour classification (partagé entre notes et tâches)"""
+    name = models.CharField(max_length=50, unique=True)
+    color = models.CharField(max_length=7, default='#6b7280')
+    description = models.CharField(max_length=200, blank=True)
+    usage_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-usage_count', 'name']
+        indexes = [
+            models.Index(fields=['usage_count']),
+        ]
+    
+    def __str__(self):
+        return self.name
+```
+
+#### 🔌 API Endpoints
+- `GET /api/tags/` - Liste tags avec usage_count
+- `POST /api/tags/` - Créer tag
+- `GET /api/tags/{id}/` - Détail tag
+- `PUT /api/tags/{id}/` - Modifier tag (Admin)
+- `DELETE /api/tags/{id}/` - Supprimer tag (Admin)
+- `GET /api/tags/{id}/notes/` - Notes utilisant ce tag
+- `GET /api/tags/{id}/tasks/` - Tâches utilisant ce tag---
+
+## 🗄️ Configuration Base de Données
+
+### Script SQL de Création
+
+Le fichier `sharetech_sql.sql` contient le script complet de création de la base de données avec :
+- ✅ 11 tables principales
+- ✅ Foreign keys avec ON DELETE CASCADE/SET NULL
+- ✅ Index de performance sur colonnes fréquemment requêtées
+- ✅ Contraintes d'intégrité (UNIQUE, CHECK)
+
+### Schéma Relationnel Complet
+
+```
+USER (1,n) ──creates──> (1,1) PROJECT
+USER (1,n) ──belongs_to──> (0,n) PROJECT [via PROJECT_MEMBER]
+USER (1,n) ──authors──> (1,1) NOTE
+USER (1,n) ──assigned_to──> (0,1) TASK
+USER (1,n) ──creates──> (1,1) TASK
+USER (1,n) ──authors──> (1,1) COMMENT
+USER (1,n) ──uploads──> (1,1) ATTACHMENT
+USER (1,n) ──receives──> (1,1) NOTIFICATION
+
+PROJECT (1,n) ──contains──> (1,1) NOTE
+PROJECT (1,n) ──contains──> (1,1) TASK
+
+NOTE (1,n) ──has──> (0,n) COMMENT
+NOTE (1,n) ──has──> (0,n) ATTACHMENT
+NOTE (0,n) ──classified_by──> (0,n) TAG [via NOTE_TAG]
+
+TASK (0,n) ──classified_by──> (0,n) TAG [via TASK_TAG]
+
+COMMENT (0,1) ──replies_to──> (0,n) COMMENT (self-referencing)
+COMMENT (1,n) ──has──> (0,n) ATTACHMENT
+```
+
+### Index de Performance Créés
+
+```sql
+-- USER
+idx_user_role, idx_user_active
+
+-- PROJECT  
+idx_project_status, idx_project_created_by, idx_project_name
+
+-- PROJECT_MEMBER
+idx_project_member_project, idx_project_member_user, idx_project_member_role
+
+-- NOTE
+idx_note_project, idx_note_author, idx_note_status, idx_note_priority, 
+idx_note_title, idx_note_published, idx_note_created
+
+-- TASK
+idx_task_project, idx_task_assigned, idx_task_created_by, idx_task_status, 
+idx_task_priority, idx_task_due_date
+
+-- COMMENT
+idx_comment_note, idx_comment_author, idx_comment_parent, idx_comment_created
+
+-- ATTACHMENT
+idx_attachment_note, idx_attachment_comment, idx_attachment_uploaded_by, idx_attachment_mime
+
+-- NOTIFICATION
+idx_notification_user, idx_notification_type, idx_notification_read, 
+idx_notification_triggered, idx_notification_created
+
+-- TAG
+idx_tag_usage
+
+-- Index composites pour requêtes complexes
+idx_note_project_status (project_id, status)
+idx_task_project_assigned (project_id, assigned_to)
+idx_notification_user_unread (user_id, is_read)
+idx_task_status_due (status, due_date)
+```
+
+---
+
+## 🐳 Configuration Docker
+
+### docker-compose.yml
+```yaml
+version: '3.8'
+
+services:
+  # Service MariaDB
+  db:
+    image: mariadb:10.6
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: sharetech_memory
+      MYSQL_USER: sharetech
+      MYSQL_PASSWORD: sharetech123
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./sharetech_sql.sql:/docker-entrypoint-initdb.d/init_db.sql
+    ports:
+      - "3306:3306"
+    networks:
+      - sharetech_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Service Backend Django
+  backend:
+    build: ./backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DEBUG=1
+      - DATABASE_URL=mysql://sharetech:sharetech123@db:3306/sharetech_memory
+      - SECRET_KEY=your-secret-key-here
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+    networks:
+      - sharetech_network
+
+  # Service Frontend React
+  frontend:
+    build: ./frontend
+    command: npm start
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - sharetech_network
+
+volumes:
+  mariadb_data:
+  static_volume:
+  media_volume:
+
+networks:
+  sharetech_network:
+    driver: bridge
+```
+
+### backend/Dockerfile
+```dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Installation dépendances système pour mysqlclient
+RUN apt-get update && apt-get install -y \
+    default-libmysqlclient-dev \
+    build-essential \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+```
+
+### frontend/Dockerfile
+```dockerfile
+FROM node:22-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
+```
+
+### backend/requirements.txt
+```
+Django==5.0.1
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+mysqlclient==2.2.1
+python-decouple==3.8
+Pillow==10.2.0
+django-extensions==3.2.3
+django-filter==23.5
+```
+
+---
+
+## 📝 Conventions de Nommage
+
+### Base de Données
+- **Tables** : UPPERCASE avec underscore (ex: `USER`, `PROJECT_MEMBER`)
+- **Colonnes** : snake_case (ex: `created_at`, `password_hash`)
+- **Clés étrangères** : `{table_singular}_id` (ex: `project_id`, `author_id`)
+- **Index** : `idx_{table}_{column}` (ex: `idx_user_role`)
+- **Contraintes** : `fk_{table}_{column}` pour foreign keys
+
+### Django (Backend)
+- **Models** : PascalCase, singular (ex: `User`, `Project`, `ProjectMember`)
+- **Fields** : snake_case, correspond aux colonnes SQL (ex: `created_at`, `password_hash`)
+- **Views** : PascalCase + ViewSet suffix (ex: `ProjectViewSet`, `NoteViewSet`)
+- **Serializers** : PascalCase + Serializer suffix (ex: `UserSerializer`, `ProjectSerializer`)
+- **URLs** : kebab-case, plural (ex: `/api/projects/`, `/api/user-profile/`)
+- **Apps** : snake_case, plural (ex: `accounts`, `core`, `notifications`, `attachments`)
+- **Methods** : snake_case (ex: `get_queryset`, `perform_create`)
+- **Constants** : UPPER_SNAKE_CASE (ex: `MAX_FILE_SIZE`, `ALLOWED_MIME_TYPES`)
+
+### React (Frontend)
+- **Components** : PascalCase (ex: `LoginPage`, `ProjectCard`, `TaskBoard`)
+- **Functions** : camelCase (ex: `handleSubmit`, `fetchProjects`, `updateTaskStatus`)
+- **Contexts** : PascalCase + Context suffix (ex: `AuthContext`, `ProjectContext`)
+- **Providers** : PascalCase + Provider suffix (ex: `AuthProvider`)
+- **Services** : camelCase + Service suffix (ex: `authService`, `projectService`)
+- **Constants** : UPPER_SNAKE_CASE (ex: `API_BASE_URL`, `USER_ROLES`, `TASK_STATUSES`)
+- **CSS Classes** : kebab-case (ex: `.project-card`, `.btn-primary`, `.task-item`)
+- **Props** : camelCase (ex: `onClick`, `isActive`, `projectId`)
+- **State variables** : camelCase (ex: `user`, `projects`, `isLoading`)
+
+### API REST
+- **Endpoints** : kebab-case, plural pour collections (ex: `/api/projects/`, `/api/task-tags/`)
+- **Methods HTTP** :
+  - `GET /api/projects/` - Liste (collection)
+  - `POST /api/projects/` - Création
+  - `GET /api/projects/{id}/` - Détail (instance)
+  - `PUT /api/projects/{id}/` - Modification complète
+  - `PATCH /api/projects/{id}/` - Modification partielle
+  - `DELETE /api/projects/{id}/` - Suppression
+- **Query params** : snake_case (ex: `?status=actif&created_by=5`)
+- **Request/Response body** : snake_case JSON (ex: `{"project_id": 1, "user_id": 3}`)
+
+### Git
+- **Branches** : 
+  - `main` - Production stable
+  - `develop` - Développement en cours
+  - `feature/{nom-feature}` - Nouvelle fonctionnalité (ex: `feature/note-versioning`)
+  - `fix/{nom-bug}` - Correction de bug (ex: `fix/login-redirect`)
+  - `refactor/{nom}` - Refactorisation (ex: `refactor/api-services`)
+  - `docs/{nom}` - Documentation (ex: `docs/api-reference`)
+- **Commits** : Conventional Commits
+  - `feat: add user authentication with session cookies`
+  - `fix: resolve task status update issue`
+  - `docs: update API endpoint documentation`
+  - `refactor: improve project service error handling`
+  - `style: format code with prettier`
+  - `test: add tests for note creation`
+  - `chore: update dependencies`
+
+### Fichiers et Dossiers
+- **Python files** : snake_case (ex: `models.py`, `user_service.py`)
+- **React files** : PascalCase pour composants (ex: `ProjectCard.jsx`), camelCase pour services (ex: `authService.js`)
+- **CSS files** : kebab-case (ex: `project-card.css`, `global-styles.css`)
+- **Config files** : kebab-case ou dot-prefixed (ex: `docker-compose.yml`, `.env`, `.gitignore`)
+
+---
+
+## 🔐 Système de Permissions
+
+### Hiérarchie des Rôles
+
+```
+Admin (superuser)
+  └─> Lead Developer
+       └─> Senior Developer
+            └─> Junior Developer (base)
+```
+
+### Matrice des Permissions
+
+| Action | Junior | Senior | Lead | Admin |
+|--------|--------|--------|------|-------|
+| **Projets** |
+| Consulter projets accessibles | ✅ | ✅ | ✅ | ✅ |
+| Créer projet | ❌ | ❌ | ✅ | ✅ |
+| Modifier projet | ❌ | ❌ | ✅ (si membre) | ✅ |
+| Supprimer projet | ❌ | ❌ | ❌ | ✅ |
+| Ajouter membres | ❌ | ❌ | ✅ (si maintainer) | ✅ |
+| Retirer membres | ❌ | ❌ | ✅ (si maintainer) | ✅ |
+| **Notes** |
+| Consulter notes projet | ✅ (si membre) | ✅ (si membre) | ✅ (si membre) | ✅ |
+| Créer note | ✅ | ✅ | ✅ | ✅ |
+| Modifier ses notes | ✅ | ✅ | ✅ | ✅ |
+| Modifier notes autres | ❌ | ✅ | ✅ | ✅ |
+| Supprimer ses notes | ✅ | ✅ | ✅ | ✅ |
+| Supprimer notes autres | ❌ | ❌ | ✅ | ✅ |
+| Publier note | ✅ (auteur) | ✅ | ✅ | ✅ |
+| **Tâches** |
+| Consulter tâches | ✅ (si membre) | ✅ (si membre) | ✅ (si membre) | ✅ |
+| Créer tâche | ❌ | ❌ | ✅ | ✅ |
+| Modifier tâche | ❌ | ❌ | ✅ | ✅ |
+| Supprimer tâche | ❌ | ❌ | ✅ | ✅ |
+| Assigner tâche | ❌ | ❌ | ✅ | ✅ |
+| Changer statut (si assigné) | ✅ | ✅ | ✅ | ✅ |
+| Changer priorité | ❌ | ❌ | ✅ | ✅ |
+| **Commentaires** |
+| Lire commentaires | ✅ (si accès note) | ✅ | ✅ | ✅ |
+| Ajouter commentaire | ✅ | ✅ | ✅ | ✅ |
+| Modifier son commentaire (24h) | ✅ | ✅ | ✅ | ✅ |
+| Supprimer son commentaire | ✅ | ✅ | ✅ | ✅ |
+| Supprimer commentaire autre | ❌ | ❌ | ✅ | ✅ |
+| **Fichiers** |
+| Télécharger fichier | ✅ (si accès) | ✅ | ✅ | ✅ |
+| Upload fichier | ✅ | ✅ | ✅ | ✅ |
+| Supprimer ses fichiers | ✅ | ✅ | ✅ | ✅ |
+| Supprimer fichiers autres | ❌ | ❌ | ✅ | ✅ |
+| **Administration** |
+| Gérer utilisateurs | ❌ | ❌ | ❌ | ✅ |
+| Changer rôles | ❌ | ❌ | ❌ | ✅ |
+| Accéder---
+
+## ⚛️ Architecture Frontend React (Détaillée)
+
+### 📂 Structure Complète
+```
+frontend/src/
+├── components/                 # Composants réutilisables
+│   ├── common/                 # ⚠️ Composants génériques
+│   │   ├── Button.js
+│   │   ├── Input.js
+│   │   ├── Modal.js
+│   │   ├── Card.js
+│   │   ├── Badge.js
+│   │   ├── Spinner.js
+│   │   └── Toast.js
+│   │
+│   ├── auth/                   # ⚠️ Authentification
+│   │   ├── LoginForm.js
+│   │   ├── RegisterForm.js
+│   │   └── PrivateRoute.js
+│   │
+│   ├── projects/               # ⚠️ Gestion projets
+│   │   ├── ProjectCard.js
+│   │   ├── ProjectForm.js
+│   │   ├── ProjectList.js
+│   │   ├── ProjectMemberList.js
+│   │   └── AddMemberModal.js
+│   │
+│   ├── notes/                  # ⚠️ Gestion notes
+│   │   ├── NoteCard.js
+│   │   ├── NoteEditor.js       # Éditeur Markdown
+│   │   ├── NoteList.js
+│   │   ├── NoteDetail.js
+│   │   └── NoteFilters.js
+│   │
+│   ├── tasks/                  # ⚠️ Gestion tâches
+│   │   ├── TaskCard.js
+│   │   ├── TaskForm.js
+│   │   ├── TaskBoard.js        # Vue Kanban
+│   │   ├── TaskList.js
+│   │   └── TaskFilters.# ShareTech - Architecture de Référence
+
+> 📌 **Document de référence** : Ce fichier décrit l'architecture complète du projet ShareTech tel qu'il doit être construit. Utilise-le comme guide pour vérifier que chaque composant est bien implémenté.
+
+## 📊 Vue d'Ensemble
+
+### Concept
+ShareTech est une plateforme collaborative qui centralise la documentation technique et la gestion de tâches pour les équipes de développement de l'entreprise Memory.
+
+### Objectifs du Projet
+- 🎯 Centraliser les connaissances techniques dans un espace unique
+- 🎯 Faciliter le suivi des tâches et leur assignation
+- 🎯 Améliorer la collaboration entre développeurs
+- 🎯 Tracer l'historique des décisions techniques
+
+### Fonctionnalités Principales
+1. **Partage de Connaissances**
+   - ✅ Création et gestion de notes techniques avec contenu riche (Markdown)
+   - ✅ Système de commentaires hiérarchiques (max 5 niveaux)
+   - ✅ Classification par tags (max 10 par note)
+   - ✅ Versioning automatique avec historique
+   - ✅ Recherche full-text dans titres et contenus
+   - ✅ Gestion de fichiers joints (max 100MB)
+
+2. **Gestion de Tâches**
+   - ✅ Création et assignation de tâches aux membres
+   - ✅ Suivi d'avancement avec statuts (à faire → en cours → en test → terminée)
+   - ✅ Gestion des priorités (basse, normale, haute, urgente) et échéances
+   - ✅ Tableau de bord Kanban avec métriques
+   - ✅ Notifications automatiques sur changements
+
+3. **Système Collaboratif**
+   - ✅ Gestion de projets multi-membres avec rôles
+   - ✅ Système de permissions hiérarchique (Junior → Senior → Lead → Admin)
+   - ✅ Notifications in-app avec préférences
+   - ✅ Historique complet des actions avec audit trail
+
+---
+
+## 🏗️ Architecture Backend Django (Détaillée)
+
+### 📂 Feature : accounts/ (Gestion Utilisateurs & Authentification)
+
+**Responsabilité** : Authentification et gestion des profils utilisateurs
+
+**Priorité de développement** : 🥇 **#1 - ESSENTIEL** (Prérequis pour tout le reste)
+
+#### ✅ Fichiers à implémenter
+```
+accounts/
+├── __init__.py                 # Package marker
+├── apps.py                     # Configuration app
+├── admin.py                    # Interface admin Django
+├── models.py                   # Model User étendu
+├── serializers.py              # UserSerializer, LoginSerializer
+├── views.py                    # LoginView, LogoutView, ProfileView
+├── urls.py                     # Routes /api/auth/*
+├── tests.py                    # Tests unitaires
+├── permissions.py              # Permissions personnalisées
+└── migrations/                 # Migrations base de données
+    └── 0001_initial.py
+```
+
+#### 🎯 Models à créer
+```python
+# models.py
+class User(AbstractUser):
+    """Utilisateur étendu avec rôles hiérarchiques"""
+    ROLE_CHOICES = [
+        ('junior', 'Junior Developer'),
+        ('senior', 'Senior Developer'),
+        ('lead', 'Lead Developer'),
+        ('admin', 'Administrator'),
+    ]
+    role = models.CharField(max_choices=ROLE_CHOICES, default='junior')
+    avatar_url = models.URLField(blank=True)
+    is_active = models.BooleanField(default=True)
+    date_joined = models.DateTimeField(auto_now_add=True)
+    last_login = models.DateTimeField(null=True, blank=True)
+```
+
+#### 🔌 API Endpoints
+- `POST /api/auth/login/` - Connexion (SessionAuthentication)
+- `POST /api/auth/logout/` - Déconnexion
+- `GET /api/auth/user/` - Profil utilisateur connecté
+- `PUT /api/auth/user/` - Mise à jour profil
+- `PATCH /api/auth/user/avatar/` - Upload avatar
+
+#### 🔐 Permissions
+```python
+# permissions.py
+class IsOwnerOrReadOnly(BasePermission):
+    """Seul le propriétaire peut modifier"""
+    
+class IsSeniorOrAbove(BasePermission):
+    """Nécessite rôle Senior minimum"""
+    
+class IsLeadOrAbove(BasePermission):
+    """Nécessite rôle Lead minimum"""
+```
+
+---
+
+### 📂 Feature : projects/ (Gestion Projets)
+
+**Responsabilité** : Projets collaboratifs et gestion des membres
+
+**Priorité de développement** : 🥈 **#2 - ESSENTIEL** (Contexte pour notes et tâches)
+
+**Dépendances** : accounts
+
+#### ✅ Fichiers à implémenter
+```
+projects/
+├── __init__.py
+├── apps.py
+├── admin.py                    # Admin Project, ProjectMember
+├── models.py                   # Project, ProjectMember
+├── serializers.py              # ProjectSerializer, ProjectMemberSerializer
+├── views.py                    # ProjectViewSet, MemberViewSet
+├── urls.py                     # Routes /api/projects/*
+├── filters.py                  # Filtres recherche projets
+├── permissions.py              # Permissions projet
+├── tests/
+│   ├── test_project_model.py
+│   ├── test_project_api.py
+│   └── test_permissions.py
+└── migrations/
+    └── 0001_initial.py
+```
+
+#### 🎯 Models à créer
+```python
+# models.py
+class Project(models.Model):
+    """Projet collaboratif"""
+    STATUS_CHOICES = [
+        ('actif', 'Actif'),
+        ('archive', 'Archivé'),
+        ('suspendu', 'Suspendu'),
+    ]
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    status = models.CharField(choices=STATUS_CHOICES, default='actif')
+    created_by = models.ForeignKey('accounts.User', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['created_by']),
+        ]
+
+class ProjectMember(models.Model):
+    """Table de liaison User-Project avec rôles"""
+    ROLE_CHOICES = [
+        ('member', 'Member'),
+        ('contributor', 'Contributor'),
+        ('maintainer', 'Maintainer'),
+    ]
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE)
+    role_project = models.CharField(choices=ROLE_CHOICES, default='member')
+    joined_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['project', 'user']
+        indexes = [
+            models.Index(fields=['project']),
+            models.Index(fields=['user']),
+        ]
+```
+
+#### 🔌 API Endpoints
+- `GET /api/projects/` - Liste projets (filtrés selon accès)
+- `POST /api/projects/` - Créer projet (Lead+)
+- `GET /api/projects/{id}/` - Détail projet
+- `PUT /api/projects/{id}/` - Modifier projet (Lead+)
+- `DELETE /api/projects/{id}/` - Supprimer projet (Admin)
+- `GET /api/projects/{id}/members/` - Liste membres
+- `POST /api/projects/{id}/members/` - Ajouter membre (Lead+)
+- `DELETE /api/projects/{id}/members/{user_id}/` - Retirer membre (Lead+)
+
+---
+
+### 📂 Feature : notes/ (Notes Techniques)
+
+**Responsabilité** : Création et gestion de notes techniques avec versioning
+
+**Priorité de développement** : 🥉 **#3 - CORE FEATURE** (Fonctionnalité principale)
+
+**Dépendances** : accounts, projects, tags
+
+#### ✅ Fichiers à implémenter
+```
+notes/
+├── __init__.py
+├── apps.py
+├── admin.py                    # Admin Note
+├── models.py                   # Note, NoteTag (liaison)
+├── serializers.py              # NoteSerializer, NoteDetailSerializer
+├── views.py                    # NoteViewSet
+├── urls.py                     # Routes /api/notes/*
+├── filters.py                  # Filtres recherche notes
+├── permissions.py              # Permissions notes
+├── services.py                 # Versioning, search
+├── tests/
+│   ├── test_note_model.py
+│   ├── test_note_api.py
+│   ├── test_versioning.py
+│   └── test_permissions.py
+└── migrations/
+    └── 0001_initial.py
+```
+
+#### 🎯 Models à créer
+```python
+# models.py
+class Note(models.Model):
+    """Note technique avec versioning"""
+    STATUS_CHOICES = [
+        ('brouillon', 'Brouillon'),
+        ('publie', 'Publié'),
+        ('archive', 'Archivé'),
+    ]
+    PRIORITY_CHOICES = [
+        ('basse', 'Basse'),
+        ('normale', 'Normale'),
+        ('haute', 'Haute'),
+    ]
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    excerpt = models.CharField(max_length=500, blank=True)
+    status = models.CharField(choices=STATUS_CHOICES, default='brouillon')
+    priority = models.CharField(choices=PRIORITY_CHOICES, default='normale')
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='notes')
+    author = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='authored_notes')
+    tags = models.ManyToManyField('tags.Tag', through='NoteTag', related_name='notes')
+    view_count = models.IntegerField(default=0)
+    like_count = models.IntegerField(default=0)
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['project', 'status']),
+            models.Index(fields=['author']),
+            models.Index(fields=['status']),
+            models.Index(fields=['priority']),
+        ]
+
+class NoteTag(models.Model):
+    """Table de liaison Note-Tag"""
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    tag = models.ForeignKey('tags.Tag', on_delete=models.CASCADE)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['note', 'tag']
+```
+
+#### 🔌 API Endpoints
+- `GET /api/projects/{id}/notes/` - Notes d'un projet
+- `POST /api/projects/{id}/notes/` - Créer note
+- `GET /api/notes/{id}/` - Détail note
+- `PUT /api/notes/{id}/` - Modifier note (auteur ou Senior+)
+- `DELETE /api/notes/{id}/` - Supprimer note (auteur ou Lead+)
+- `PATCH /api/notes/{id}/status/` - Changer statut
+- `GET /api/notes/{id}/history/` - Historique versions
+- `POST /api/notes/{id}/tags/` - Ajouter tags
+- `DELETE /api/notes/{id}/tags/{tag_id}/` - Retirer tag
+
+---
+
+### 📂 Feature : tasks/ (Gestion Tâches)
+
+**Responsabilité** : Tâches de projet avec assignation et suivi
+
+**Priorité de développement** : 🏅 **#4 - CORE FEATURE** (Fonctionnalité principale)
+
+**Dépendances** : accounts, projects, tags
+
+#### ✅ Fichiers à implémenter
+```
+tasks/
+├── __init__.py
+├── apps.py
+├── admin.py                    # Admin Task
+├── models.py                   # Task, TaskTag (liaison)
+├── serializers.py              # TaskSerializer, TaskDetailSerializer
+├── views.py                    # TaskViewSet
+├── urls.py                     # Routes /api/tasks/*
+├── filters.py                  # Filtres recherche tâches
+├── permissions.py              # Permissions tâches
+├── services.py                 # Assignation, notifications
+├── tests/
+│   ├── test_task_model.py
+│   ├── test_task_api.py
+│   ├── test_assignment.py
+│   └── test_permissions.py
+└── migrations/
+    └── 0001_initial.py
+```
+
+#### 🎯 Models à créer
+```python
+# models.py
+class Task(models.Model):
+    """Tâche de projet avec assignation"""
+    STATUS_CHOICES = [
+        ('a_faire', 'À faire'),
+        ('en_cours', 'En cours'),
+        ('en_test', 'En test'),
+        ('terminee', 'Terminée'),
+        ('annulee', 'Annulée'),
+    ]
+    PRIORITY_CHOICES = [
+        ('basse', 'Basse'),
+        ('normale', 'Normale'),
+        ('haute', 'Haute'),
+        ('urgente', 'Urgente'),
+    ]
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    status = models.CharField(choices=STATUS_CHOICES, default='a_faire')
+    priority = models.CharField(choices=PRIORITY_CHOICES, default='normale')
+    estimated_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    actual_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    completed_date = models.DateField(null=True, blank=True)
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='tasks')
+    assigned_to = models.ForeignKey('accounts.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='assigned_tasks')
+    created_by = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='created_tasks')
+    tags = models.ManyToManyField('tags.Tag', through='TaskTag', related_name='tasks')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['project', 'assigned_to']),
+            models.Index(fields=['status']),
+            models.Index(fields=['priority']),
+            models.Index(fields=['due_date']),
+            models.Index(fields=['status', 'due_date']),
+        ]
+
+class TaskTag(models.Model):
+    """Table de liaison Task-Tag"""
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    tag = models.ForeignKey('tags.Tag', on_delete=models.CASCADE)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['task', 'tag']
+```
+
+#### 🔌 API Endpoints
+- `GET /api/projects/{id}/tasks/` - Tâches d'un projet
+- `POST /api/projects/{id}/tasks/` - Créer tâche (Lead+)
+- `GET /api/tasks/{id}/` - Détail tâche
+- `PUT /api/tasks/{id}/` - Modifier tâche (Lead+)
+- `DELETE /api/tasks/{id}/` - Supprimer tâche (Lead+)
+- `PATCH /api/tasks/{id}/status/` - Changer statut (assigné)
+- `PATCH /api/tasks/{id}/assign/` - Assigner tâche (Lead+)
+- `POST /api/tasks/{id}/tags/` - Ajouter tags
+- `DELETE /api/tasks/{id}/tags/{tag_id}/` - Retirer tag
+
+---
+
+### 📂 Feature : comments/ (Système Commentaires)
+
+**Responsabilité** : Commentaires hiérarchiques sur notes
+
+**Priorité de développement** : 🎖️ **#5 - ENHANCEMENT** (Améliore notes)
+
+**Dépendances** : accounts, notes
+
+#### ✅ Fichiers à implémenter
+```
+comments/
+├── __init__.py
+├── apps.py
+├── admin.py                    # Admin Comment
+├── models.py                   # Comment
+├── serializers.py              # CommentSerializer, CommentTreeSerializer
+├── views.py                    # CommentViewSet
+├── urls.py                     # Routes /api/comments/*
+├── permissions.py              # Permissions commentaires
+├── services.py                 # Gestion hiérarchie, mentions
+├── tests/
+│   ├── test_comment_model.py
+│   ├── test_comment_api.py
+│   └── test_hierarchy.py
+└── migrations/
+    └── 0001_initial.py
+```
+
+#### 🎯 Model à créer
+```python
+# models.py
+class Comment(models.Model):
+    """Commentaire hiérarchique sur note"""
+    content = models.TextField()
+    note = models.ForeignKey('notes.Note', on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='comments')
+    parent_comment = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
+    is_edited = models.BooleanField(default=False)
+    like_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['note']),
+            models.Index(fields=['author']),
+            models.Index(fields=['parent_comment']),
+        ]
+```
+
+#### 🔌 API Endpoints
+- `GET /api/notes/{id}/comments/` - Commentaires d'une note
+- `POST /api/notes/{id}/comments/` - Ajouter commentaire
+- `GET /api/comments/{id}/` - Détail commentaire
+- `PUT /api/comments/{id}/` - Modifier commentaire (auteur, 24h max)
+- `DELETE /api/comments/{id}/` - Supprimer commentaire (auteur ou Lead+)
+- `POST /api/comments/{id}/replies/` - Répondre à un commentaire
+
+---
+
+### 📂 Feature : tags/ (Système Tags)
+
+**Responsabilité** : Tags partagés pour classification notes et tâches
+
+**Priorité de développement** : 🎯 **#6 - TRANSVERSAL** (Utilisé par notes et tasks)
+
+**Dépendances** : Aucune (feature indépendante)
+
+---
+
+### 📂 Feature : notifications/ (Système Notifications)
+
+**Responsabilité** : Gestion et envoi des notifications in-app
+
+**Priorité de développement** : 🎖️ **#7 - ENHANCEMENT** (Améliore UX)
+
+#### ✅ Fichiers à implémenter
+```
+notifications/
+├── __init__.py
+├── apps.py
+├── admin.py
+├── models.py                   # Model Notification
+├── serializers.py              # NotificationSerializer
+├── views.py                    # NotificationViewSet
+├── urls.py                     # Routes /api/notifications/*
+├── services.py                 # Logique création notifications
+├── signals.py                  # Django signals pour auto-création
+├── tests.py
+└── migrations/
+    └── 0001_initial.py
+```
+
+#### 🎯 Model à créer
+```python
+# models.py
+class Notification(models.Model):
+    """Notification in-app pour utilisateur"""
+    TYPE_CHOICES = [
+        ('note_created', 'Note créée'),
+        ('note_updated', 'Note mise à jour'),
+        ('task_assigned', 'Tâche assignée'),
+        ('task_completed', 'Tâche terminée'),
+        ('comment_added', 'Commentaire ajouté'),
+        ('mention', 'Mention'),
+        ('project_invitation', 'Invitation projet'),
+    ]
+    type = models.CharField(choices=TYPE_CHOICES)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+.Note', null=True, on_delete=models.SET_NULL)
+    related_task = models.ForeignKey('tasks.Task', null=True, on_delete=models.SET_NULL)
+    related_comment = models.ForeignKey('comments.Comment', null=True, on_delete=models.SET_NULL)
+    related_project = models.ForeignKey('projects.Project', null=True, on_delete=models.SET_NULL)
+    triggered_by = models.ForeignKey('accounts.User', null=True, on_delete=models.SET_NULL, related_name='triggered_notifications')
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+```
+
+#### 🎯 Services à créer
+```python
+# services.py
+class NotificationService:
+    """Service pour création automatique de notifications"""
+    
+    @staticmethod
+    def notify_task_assigned(task, assigned_user, assigned_by):
+        """Notifie l'utilisateur qu'une tâche lui a été assignée"""
+        
+    @staticmethod
+    def notify_comment_added(comment, note_author):
+        """Notifie l'auteur de la note d'un nouveau commentaire"""
+        
+    @staticmethod
+    def notify_mention(mentioned_user, content, triggered_by):
+        """Notifie l'utilisateur qu'il a été mentionné"""
+```
+
+#### 🔔 Signals à configurer
+```python
+# signals.py
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=Task)
+def task_assigned_notification(sender, instance, created, **kwargs):
+    """Crée notification automatique lors assignation tâche"""
+    
+@receiver(post_save, sender=Comment)
+def comment_added_notification(sender, instance, created, **kwargs):
+    """Crée notification pour nouveau commentaire"""
+```
+
+#### 🔌 API Endpoints
+- `GET /api/notifications/` - Liste notifications utilisateur
+- `GET /api/notifications/unread/` - Notifications non lues
+- `PATCH /api/notifications/{id}/read/` - Marquer comme lu
+- `PATCH /api/notifications/mark-all-read/` - Tout marquer comme lu
+- `DELETE /api/notifications/{id}/` - Supprimer notification
+
+---
+
+### 📂 Feature : attachments/ (Gestion Fichiers)
+
+**Responsabilité** : Upload, stockage et téléchargement de fichiers joints
+
+**Priorité de développement** : 🎖️ **#8 - ENHANCEMENT** (Enrichit notes et commentaires)
+
+**Dépendances** : accounts, notes, comments
+
+#### ✅ Fichiers à implémenter
+```
+attachments/
+├── __init__.py
+├── apps.py
+├── admin.py
+├── models.py                   # Model Attachment
+├── serializers.py              # AttachmentSerializer
+├── views.py                    # AttachmentViewSet
+├── urls.py                     # Routes /api/attachments/*
+├── storage.py                  # Configuration stockage fichiers
+├── validators.py               # Validation fichiers (taille, type)
+├── services.py                 # Logique upload/hash
+├── tests.py
+└── migrations/
+    └── 0001_initial.py
+```
+
+#### 🎯 Model à créer
+```python
+# models.py
+class Attachment(models.Model):
+    """Fichier joint à une note ou commentaire"""
+    original_name = models.CharField(max_length=255)
+    stored_name = models.CharField(max_length=255)  # UUID + extension
+    file_path = models.CharField(max_length=500)
+    file_size = models.IntegerField()  # en octets
+    mime_type = models.CharField(max_length=100)
+    file_hash = models.CharField(max_length=64, blank=True)  # MD5
+    note = models.ForeignKey('notes.Note', null=True, on_delete=models.CASCADE)
+    comment = models.ForeignKey('comments.Comment', null=True, on_delete=models.CASCADE)
+    uploaded_by = models.ForeignKey('accounts.User', on_delete=models.CASCADE)
+    upload_date = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(note__isnull=False) | models.Q(comment__isnull=False),
+                name='attachment_must_have_note_or_comment'
+            )
+        ]
+```
+
+#### 🎯 Services à créer
+```python
+# services.py
+class AttachmentService:
+    """Service pour gestion sécurisée des fichiers"""
+    
+    ALLOWED_MIME_TYPES = [
+        'image/jpeg', 'image/png', 'image/gif',
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain', 'application/json', 'text/xml'
+    ]
+    MAX_FILE_SIZE = 104857600  # 100MB
+    
+    @staticmethod
+    def validate_file(file):
+        """Valide type et taille du fichier"""
+        
+    @staticmethod
+    def generate_unique_filename(original_name):
+        """Génère nom unique avec UUID"""
+        
+    @staticmethod
+    def calculate_hash(file):
+        """Calcule hash MD5 du fichier"""
+        
+    @staticmethod
+    def scan_virus(file):
+        """Scan antivirus (à implémenter avec ClamAV)"""
+```
+
+#### 🔌 API Endpoints
+- `POST /api/attachments/` - Upload fichier
+- `GET /api/attachments/{id}/` - Télécharger fichier
+- `DELETE /api/attachments/{id}/` - Supprimer fichier (auteur ou Lead+)
+- `GET /api/notes/{id}/attachments/` - Fichiers d'une note
+- `GET /api/comments/{id}/attachments/` - Fichiers d'un commentaire
+
+### Backend
+- **Framework** : Django 5.0.1
+- **API REST** : Django REST Framework 3.14.0
+- **Langage** : Python 3.12
+- **Dépendances clés** :
+  - `django-cors-headers==4.3.1` - Support CORS
+  - `mysqlclient==2.2.1` - Connecteur MariaDB
+  - `python-decouple==3.8` - Gestion configuration
+  - `Pillow==10.2.0` - Traitement d'images
+  - `django-extensions==3.2.3` - Utilitaires Django
+
+### Frontend
+- **Framework** : React 18.x
+- **Langage** : JavaScript ES6+
+- **Bibliothèques** :
+  - `react-router-dom` - Routage client
+  - `axios` - Client HTTP
+  - Context API - Gestion d'état global
+
+### Base de Données
+- **SGBD** : MariaDB 10.6
+- **Moteur** : InnoDB
+- **Collation** : utf8mb4_unicode_ci
+
+### Infrastructure
+- **Conteneurisation** : Docker + Docker Compose
+- **Services** :
+  - `db` : MariaDB (port 3306)
+  - `backend` : Django (port 8000)
+  - `frontend` : React (port 3000)
+
+---
+
+## 🗂️ Structure du Projet (État Actuel vs Cible)
+
+### 📁 Structure Racine
+```
+ShareTech2/
+├── backend/                    # ✅ Application Django
+│   ├── sharetech/              # ✅ Configuration principale
+│   ├── accounts/               # ⚠️ Feature #1 - ESSENTIEL
+│   ├── projects/               # ⚠️ Feature #2 - ESSENTIEL
+│   ├── notes/                  # ⚠️ Feature #3 - CORE
+│   ├── tasks/                  # ⚠️ Feature #4 - CORE
+│   ├── comments/               # ⚠️ Feature #5 - ENHANCEMENT
+│   ├── tags/                   # ⚠️ Feature #6 - TRANSVERSAL
+│   ├── notifications/          # ⚠️ Feature #7 - ENHANCEMENT
+│   ├── attachments/            # ⚠️ Feature #8 - ENHANCEMENT
+│   ├── requirements.txt        # ✅ Fichier de dépendances
+│   ├── Dockerfile              # ✅ Configuration Docker
+│   └── manage.py               # ✅ CLI Django
+│
+├── frontend/                   # ✅ Application React
+│   ├── public/                 # ✅ Assets publics
+│   ├── src/                    # ⚠️ À structurer
+│   │   ├── components/         # ⚠️ À créer
+│   │   ├── contexts/           # ⚠️ À créer
+│   │   ├── services/           # ⚠️ À créer
+│   │   ├── pages/              # ⚠️ À créer
+│   │   ├── utils/              # ⚠️ À créer
+│   │   ├── App.js              # ✅ Composant racine
+│   │   └── index.js            # ✅ Point d'entrée
+│   ├── package.json            # ✅ Dépendances npm
+│   └── Dockerfile              # ✅ Configuration Docker
+│
+├── docker-compose.yml          # ✅ Orchestration services
+├── sharetech_sql.sql           # ✅ Script SQL base de données
+├── .env                        # ✅ Variables d'environnement
+├── .gitignore                  # ✅ Fichiers à ignorer
+├── README.md                   # ⚠️ À compléter
+└── architecture.md             # ✅ Ce fichier
+```
+
+### Légende
+- ✅ Créé et configuré
+- ⚠️ À implémenter
+- ❌ Manquant ou incorrect
+
+---
+
+## 🗄️ Schéma de Base de Données
+
+### Entités Principales (11 tables)
+
+#### 1. USER - Utilisateurs
+```sql
+- id (PK, AUTO_INCREMENT)
+- username (UNIQUE, VARCHAR(50))
+- email (UNIQUE, VARCHAR(100))
+- password_hash (VARCHAR(255))
+- first_name (VARCHAR(50))
+- last_name (VARCHAR(50))
+- role (ENUM: 'junior', 'senior', 'lead', 'admin')
+- avatar_url (VARCHAR(255), NULL)
+- is_active (BOOLEAN, DEFAULT TRUE)
+- date_joined (TIMESTAMP)
+- last_login (TIMESTAMP, NULL)
+- created_at, updated_at (TIMESTAMP)
+```
+
+#### 2. PROJECT - Projets
+```sql
+- id (PK)
+- name (VARCHAR(100))
+- description (TEXT, NULL)
+- status (ENUM: 'actif', 'archive', 'suspendu')
+- created_by (FK → USER.id)
+- created_at, updated_at (TIMESTAMP)
+```
+
+#### 3. PROJECT_MEMBER - Membres de projet (N:M)
+```sql
+- id (PK)
+- project_id (FK → PROJECT.id)
+- user_id (FK → USER.id)
+- role_project (ENUM: 'member', 'contributor', 'maintainer')
+- joined_at (TIMESTAMP)
+- UNIQUE(project_id, user_id)
+```
+
+#### 4. NOTE - Notes techniques
+```sql
+- id (PK)
+- title (VARCHAR(200))
+- content (TEXT)
+- excerpt (VARCHAR(500), NULL)
+- status (ENUM: 'brouillon', 'publie', 'archive')
+- priority (ENUM: 'basse', 'normale', 'haute')
+- project_id (FK → PROJECT.id)
+- author_id (FK → USER.id)
+- view_count, like_count (INT, DEFAULT 0)
+- created_at, updated_at, published_at (TIMESTAMP)
+```
+
+#### 5. TASK - Tâches
+```sql
+- id (PK)
+- title (VARCHAR(200))
+- description (TEXT, NULL)
+- status (ENUM: 'a_faire', 'en_cours', 'en_test', 'terminee', 'annulee')
+- priority (ENUM: 'basse', 'normale', 'haute', 'urgente')
+- estimated_hours, actual_hours (DECIMAL(5,2), NULL)
+- due_date, completed_date (DATE, NULL)
+- project_id (FK → PROJECT.id)
+- assigned_to (FK → USER.id, NULL)
+- created_by (FK → USER.id)
+- created_at, updated_at (TIMESTAMP)
+```
+
+#### 6. TAG - Étiquettes
+```sql
+- id (PK)
+- name (UNIQUE, VARCHAR(50))
+- color (VARCHAR(7), DEFAULT '#6b7280')
+- description (VARCHAR(200), NULL)
+- usage_count (INT, DEFAULT 0)
+- created_at (TIMESTAMP)
+```
+
+#### 7. NOTE_TAG - Classification notes (N:M)
+```sql
+- note_id (PK, FK → NOTE.id)
+- tag_id (PK, FK → TAG.id)
+- assigned_at (TIMESTAMP)
+- PRIMARY KEY(note_id, tag_id)
+```
+
+#### 8. TASK_TAG - Classification tâches (N:M)
+```sql
+- task_id (PK, FK → TASK.id)
+- tag_id (PK, FK → TAG.id)
+- assigned_at (TIMESTAMP)
+- PRIMARY KEY(task_id, tag_id)
+```
+
+#### 9. COMMENT - Commentaires
+```sql
+- id (PK)
+- content (TEXT)
+- note_id (FK → NOTE.id)
+- author_id (FK → USER.id)
+- parent_comment_id (FK → COMMENT.id, NULL)
+- is_edited (BOOLEAN, DEFAULT FALSE)
+- like_count (INT, DEFAULT 0)
+- created_at, updated_at (TIMESTAMP)
+```
+
+#### 10. ATTACHMENT - Fichiers joints
+```sql
+- id (PK)
+- original_name (VARCHAR(255))
+- stored_name (VARCHAR(255))
+- file_path (VARCHAR(500))
+- file_size (INT)
+- mime_type (VARCHAR(100))
+- file_hash (VARCHAR(64), NULL)
+- note_id (FK → NOTE.id, NULL)
+- comment_id (FK → COMMENT.id, NULL)
+- uploaded_by (FK → USER.id)
+- upload_date (TIMESTAMP)
+```
+
+#### 11. NOTIFICATION - Notifications
+```sql
+- id (PK)
+- type (ENUM: 'note_created', 'note_updated', 'task_assigned', 
+        'task_completed', 'comment_added', 'mention', 'project_invitation')
+- title (VARCHAR(200))
+- message (TEXT)
+- user_id (FK → USER.id)
+- related_note_id (FK → NOTE.id, NULL)
+- related_task_id (FK → TASK.id, NULL)
+- related_comment_id (FK → COMMENT.id, NULL)
+- related_project_id (FK → PROJECT.id, NULL)
+- triggered_by (FK → USER.id, NULL)
+- is_read (BOOLEAN, DEFAULT FALSE)
+- read_at, created_at, expires_at (TIMESTAMP)
+```
+
+### Relations et Contraintes
+
+#### Règles de Suppression (ON DELETE)
+- **CASCADE** : Utilisé pour les relations parent-enfant strictes
+  - USER → PROJECT, NOTE, TASK, COMMENT, ATTACHMENT
+  - PROJECT → NOTE, TASK, PROJECT_MEMBER
+  - NOTE → COMMENT, ATTACHMENT, NOTE_TAG
+  - TASK → TASK_TAG
+  - TAG → NOTE_TAG, TASK_TAG
+  - COMMENT → COMMENT (hiérarchie), ATTACHMENT
+
+- **SET NULL** : Utilisé pour références optionnelles
+  - USER → TASK.assigned_to
+  - NOTE/TASK/COMMENT/PROJECT → NOTIFICATION
+  - USER → NOTIFICATION.triggered_by
+
+#### Index de Performance
+```sql
+-- Sur USER
+idx_user_role, idx_user_active
+
+-- Sur PROJECT
+idx_project_status, idx_project_created_by
+
+-- Sur NOTE
+idx_note_project, idx_note_status, idx_note_priority, idx_note_author
+
+-- Sur TASK
+idx_task_project, idx_task_status, idx_task_priority, 
+idx_task_assigned, idx_task_due_date
+
+-- Sur NOTIFICATION
+idx_notification_user, idx_notification_type, idx_notification_read
+
+-- Index composites
+idx_note_project_status (project_id, status)
+idx_task_project_assigned (project_id, assigned_to)
+idx_notification_user_unread (user_id, is_read)
+```
+
+---
+
+## 📝 Conventions de Nommage
+
+### Base de Données
+- **Tables** : UPPERCASE avec underscore (ex: `USER`, `PROJECT_MEMBER`)
+- **Colonnes** : snake_case (ex: `created_at`, `password_hash`)
+- **Clés étrangères** : `{table}_id` (ex: `project_id`, `author_id`)
+- **Index** : `idx_{table}_{column}` (ex: `idx_user_role`)
+- **Contraintes** : `fk_{table}_{column}` (ex: `fk_note_project`)
+
+### Django (Backend)
+- **Models** : PascalCase, singular (ex: `User`, `Project`)
+- **Fields** : snake_case (ex: `created_at`, `password_hash`)
+- **Views** : snake_case + ViewSet suffix (ex: `ProjectViewSet`)
+- **Serializers** : PascalCase + Serializer suffix (ex: `UserSerializer`)
+- **URLs** : kebab-case (ex: `/api/projects/`, `/api/user-profile/`)
+- **Apps** : snake_case, plural (ex: `accounts`, `notifications`)
+
+### React (Frontend)
+- **Components** : PascalCase (ex: `LoginPage`, `ProjectCard`)
+- **Functions** : camelCase (ex: `handleSubmit`, `fetchProjects`)
+- **Contexts** : PascalCase + Context suffix (ex: `AuthContext`)
+- **Services** : camelCase + Service suffix (ex: `authService`)
+- **Constants** : UPPER_SNAKE_CASE (ex: `API_BASE_URL`, `USER_ROLES`)
+- **CSS Classes** : kebab-case (ex: `.project-card`, `.btn-primary`)
+
+### API REST
+- **Endpoints** : kebab-case, plural (ex: `/api/projects/`, `/api/task-tags/`)
+- **Methods** :
+  - GET `/api/projects/` - Liste
+  - POST `/api/projects/` - Création
+  - GET `/api/projects/{id}/` - Détail
+  - PUT `/api/projects/{id}/` - Modification complète
+  - PATCH `/api/projects/{id}/` - Modification partielle
+  - DELETE `/api/projects/{id}/` - Suppression
+
+### Git
+- **Branches** : 
+  - `main` - Production
+  - `develop` - Développement
+  - `feature/{nom-feature}` - Nouvelle fonctionnalité
+  - `fix/{nom-bug}` - Correction de bug
+- **Commits** : Conventional Commits
+  - `feat: add user authentication`
+  - `fix: resolve login redirect issue`
+  - `docs: update API documentation`
+  - `refactor: improve project service`
+
+---
+
+## 🔐 Système de Permissions
+
+### Hiérarchie des Rôles
+1. **Junior** : Lecture, création de notes, commentaires
+2. **Senior** : Junior + modification de notes
+3. **Lead** : Senior + gestion projets, assignation tâches
+4. **Admin** : Lead + administration globale
+
+### Règles Métier
+- Seuls les membres d'un projet peuvent voir ses notes/tâches
+- Lead+ peuvent créer/supprimer des projets
+- Utilisateurs modifient leurs propres notes (sauf Senior+)
+- Tâches assignées uniquement aux membres du projet
+- Fichiers limités à 100MB
+- Maximum 10 tags par note/tâche
+- Notifications expirent après 30 jours
+
+---
+
+## 📡 API REST - Endpoints Principaux
+
+### Authentification
+- `POST /api/auth/login/` - Connexion
+- `POST /api/auth/logout/` - Déconnexion
+- `GET /api/auth/user/` - Profil utilisateur
+
+### Projets
+- `GET /api/projects/` - Liste projets
+- `POST /api/projects/` - Créer projet
+- `GET /api/projects/{id}/` - Détail projet
+- `PUT /api/projects/{id}/` - Modifier projet
+- `DELETE /api/projects/{id}/` - Supprimer projet
+- `POST /api/projects/{id}/members/` - Ajouter membre
+- `DELETE /api/projects/{id}/members/{user_id}/` - Retirer membre
+
+### Notes
+- `GET /api/projects/{id}/notes/` - Notes d'un projet
+- `POST /api/projects/{id}/notes/` - Créer note
+- `GET /api/notes/{id}/` - Détail note
+- `PUT /api/notes/{id}/` - Modifier note
+- `DELETE /api/notes/{id}/` - Supprimer note
+
+### Tâches
+- `GET /api/projects/{id}/tasks/` - Tâches d'un projet
+- `POST /api/projects/{id}/tasks/` - Créer tâche
+- `GET /api/tasks/{id}/` - Détail tâche
+- `PUT /api/tasks/{id}/` - Modifier tâche
+- `DELETE /api/tasks/{id}/` - Supprimer tâche
+
+### Transversal
+- `GET /api/notes/{id}/comments/` - Commentaires
+- `POST /api/notes/{id}/comments/` - Ajouter commentaire
+- `GET /api/tags/` - Tags disponibles
+- `GET /api/notifications/` - Notifications utilisateur
+
+---
+
+## 🔄 Flux de Données
+
+### Authentification
+```
+User Login → Django Auth → Session Cookie → Frontend State (AuthContext)
+```
+
+### Création de Note
+```
+React Form → noteService.createNote() → POST /api/notes/ 
+→ Django Serializer → Model.save() → MariaDB 
+→ Response → Update ProjectContext → Re-render
+```
+
+### Notifications
+```
+Action (task assigned) → Django Signal → Notification.create() 
+→ WebSocket (future) → Frontend NotificationContext → Toast/Badge
+```
+
+---
+
+Ce document architecture est conçu pour être une référence unique et complète du projet ShareTech.
