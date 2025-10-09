@@ -50,10 +50,21 @@ class UserProfile(models.Model):
 # Signal pour créer automatiquement un profil quand un User est créé
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
+    """
+    Crée automatiquement un UserProfile quand un User est créé.
+    Les superusers obtiennent automatiquement le role='admin'.
+    """
     if created:
-        UserProfile.objects.create(user=instance)
-
+        # Superuser = admin, autres = junior par défaut
+        role = 'admin' if instance.is_superuser else 'junior'
+        UserProfile.objects.create(user=instance, role=role)
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
-    instance.profile.save()
+    """Sauvegarde le profil quand le user est sauvegardé"""
+    try:
+        instance.profile.save()
+    except UserProfile.DoesNotExist:
+        # Si le profil n'existe pas encore (cas rare), le créer
+        role = 'admin' if instance.is_superuser else 'junior'
+        UserProfile.objects.create(user=instance, role=role)

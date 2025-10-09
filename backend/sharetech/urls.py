@@ -24,6 +24,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # API endpoints
     path('api/accounts/', include('accounts.urls')),  
+    #  path projects
+    path('api/', include('projects.urls')), 
+
 ]
 
 # Servir les fichiers media en développement

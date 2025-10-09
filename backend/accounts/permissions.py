@@ -1,9 +1,19 @@
 from rest_framework import permissions
 
 
+class IsJunior(permissions.BasePermission):
+    """
+    Permission pour Junior Developer
+    """
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        return request.user.profile.role == 'junior'
+
+
 class IsSenior(permissions.BasePermission):
     """
-    Permission pour Senior, Lead et Admin
+    Permission pour Senior Developer et supérieur
     """
     ALLOWED_ROLES = ['senior', 'lead', 'admin']
     
@@ -14,6 +24,18 @@ class IsSenior(permissions.BasePermission):
 
 
 class IsLead(permissions.BasePermission):
+    """
+    Permission pour Lead Developer et Admin
+    """
+    ALLOWED_ROLES = ['lead', 'admin']
+    
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        return request.user.profile.role in self.ALLOWED_ROLES
+
+
+class IsLeadOrAdmin(permissions.BasePermission):
     """
     Permission pour Lead et Admin
     """

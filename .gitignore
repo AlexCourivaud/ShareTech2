@@ -49,8 +49,6 @@ staticfiles/
 venv/
 env/
 
-# Misc 
-sharetech_achitecture.txt
-sharetech_sumup.md
-starting a project.md
-/to be added to frontend
+
+#assets 
+assets/

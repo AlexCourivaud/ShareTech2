@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'django_filters',
     
     # ShareTech apps
-    'accounts',  # ← AJOUTER CETTE LIGNE
+    'accounts',
+    'projects',
 ]
 
 MIDDLEWARE = [

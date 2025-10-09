@@ -9,6 +9,7 @@
 - Faciliter le suivi des tâches et leur assignation
 - Améliorer la collaboration entre développeurs
 - Tracer l'historique des décisions
+
 ### Fonctionnalités Principales
 
 **Partage de Connaissances**
@@ -62,6 +63,32 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
+### Politique de Gestion des Données
+
+**Principe général : Désactiver plutôt que supprimer**
+
+Pour préserver l'historique et l'intégrité des données :
+
+**Users (auth_user) :**
+- ❌ Jamais supprimés de la base de données
+- ✅ Désactivés via `is_active = False` quand ils quittent l'entreprise
+- ✅ Empêchés de se connecter mais historique préservé
+
+**Projects :**
+- ❌ Jamais supprimés (protection PROTECT sur les affiliations)
+- ✅ Marqués comme terminés via `is_active = False`
+- ✅ Historique complet des participants préservé
+
+**ProjectMember :**
+- ✅ Peut être supprimé (retrait d'un membre d'un projet)
+- ✅ Le projet et le user restent intacts
+
+Cette politique garantit :
+- 🔒 Protection contre les suppressions accidentelles
+- 📊 Traçabilité complète (qui a travaillé sur quoi)
+- 📈 Statistiques fiables (nombre de projets réalisés)
+- ⏮️ Possibilité d'audit et d'historique
+
 ### Système de Rôles et Permissions
 
 **Hiérarchie** : Admin > Lead Developer > Senior Developer > Junior Developer
@@ -108,19 +135,18 @@
   - `backend` : Django (port 8000)
   - `frontend` : React (port 3000)
 
-  ### autres 
-  **os** : Windows 11
-   **ide** : VSCODE
-   **terminal** : powershell 
-   **Authentification** : Sessions Django par défaut
-   **Gestion utilisateurs** : User Django par défaut + UserProfile (OneToOne) avec rôles
-
+### Autres 
+- **OS** : Windows 11
+- **IDE** : VSCode
+- **Terminal** : PowerShell 
+- **Authentification** : Sessions Django par défaut
+- **Gestion utilisateurs** : User Django par défaut + UserProfile (OneToOne) avec rôles
 
 ---
 
 ## 4. Schéma de Base de Données
 
-### 4.1 Table USER - Utilisateurs
+### 4.1 Table USER - Utilisateurs (Django par défaut)
 
 ```
 USER (auth_user - Table Django par défaut)
@@ -134,13 +160,15 @@ USER (auth_user - Table Django par défaut)
 ├── is_staff              BOOLEAN DEFAULT FALSE
 ├── is_superuser          BOOLEAN DEFAULT FALSE
 ├── date_joined           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-└── last_login            TIMESTAMP NULLIndex:
+└── last_login            TIMESTAMP NULL
 
+Index:
 - idx_user_username (username)
 - idx_user_email (email)
 ```
 
 ### 4.2 Table USER_PROFILE - Profils utilisateurs
+
 ```
 USER_PROFILE
 ├── id                    INTEGER PRIMARY KEY AUTO_INCREMENT
@@ -148,10 +176,10 @@ USER_PROFILE
 ├── role                  ENUM('junior', 'senior', 'lead', 'admin') DEFAULT 'junior'
 ├── avatar_url            VARCHAR(255) NULL
 └── created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-Index:
 
-idx_userprofile_user (user_id)
-idx_userprofile_role (role)
+Index:
+- idx_userprofile_user (user_id)
+- idx_userprofile_role (role)
 ```
 
 ### 4.3 Table PROJECT - Projets
@@ -160,14 +188,14 @@ idx_userprofile_role (role)
 PROJECT
 ├── id                    INTEGER PRIMARY KEY AUTO_INCREMENT
 ├── name                  VARCHAR(100) NOT NULL
-├── description           TEXT NULL
-├── status                ENUM('actif', 'archive', 'suspendu') DEFAULT 'actif'
-├── created_by            INTEGER NOT NULL → USER.id [CASCADE]
+├── description           VARCHAR(150) NOT NULL
+├── is_active             BOOLEAN DEFAULT TRUE
+├── created_by            INTEGER NOT NULL → USER.id [PROTECT]
 ├── created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 └── updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 
 Index:
-- idx_project_status (status)
+- idx_project_is_active (is_active)
 - idx_project_created_by (created_by)
 ```
 
@@ -176,9 +204,8 @@ Index:
 ```
 PROJECT_MEMBER
 ├── id                    INTEGER PRIMARY KEY AUTO_INCREMENT
-├── project_id            INTEGER NOT NULL → PROJECT.id [CASCADE]
-├── user_id               INTEGER NOT NULL → USER.id [CASCADE]
-├── role_project          ENUM('member', 'contributor', 'maintainer') DEFAULT 'member'
+├── project_id            INTEGER NOT NULL → PROJECT.id [PROTECT]
+├── user_id               INTEGER NOT NULL → USER.id [PROTECT]
 └── joined_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 Contraintes:
@@ -187,6 +214,8 @@ Contraintes:
 Index:
 - idx_project_member_project (project_id)
 - idx_project_member_user (user_id)
+
+Note: Les permissions sont définies par le rôle global (UserProfile.role)
 ```
 
 ### 4.5 Table NOTE - Notes
@@ -383,17 +412,22 @@ COMMENT (1,n) ──has──> ATTACHMENT (0,n)
 ### 4.14 Règles de Suppression (ON DELETE)
 
 **CASCADE** - Suppression en cascade :
-- USER → USER_PROFILE, PROJECT, NOTE, TASK, COMMENT, ATTACHMENT, NOTIFICATION, PROJECT_MEMBER
-- PROJECT → NOTE, TASK, PROJECT_MEMBER
-- NOTE → COMMENT, ATTACHMENT, NOTE_TAG
-- TASK → TASK_TAG
-- TAG → NOTE_TAG, TASK_TAG
-- COMMENT → COMMENT (replies), ATTACHMENT
+- USER → USER_PROFILE (profil supprimé si user supprimé)
+- PROJECT → NOTE, TASK (notes/tâches supprimées si projet supprimé)
+- NOTE → COMMENT, ATTACHMENT, NOTE_TAG (commentaires/fichiers/tags supprimés)
+- TASK → TASK_TAG (associations tags supprimées)
+- TAG → NOTE_TAG, TASK_TAG (associations supprimées)
+- COMMENT → COMMENT (replies), ATTACHMENT (fichiers supprimés)
+
+**PROTECT** - Empêche la suppression (préserve l'historique) :
+- USER → PROJECT.created_by (impossible de supprimer un user ayant créé des projets)
+- USER → PROJECT_MEMBER.user (impossible de supprimer un user membre de projets)
+- PROJECT → PROJECT_MEMBER.project (impossible de supprimer un projet ayant des membres)
 
 **SET NULL** - Mise à NULL :
-- USER → TASK.assigned_to
-- NOTE/TASK/COMMENT/PROJECT → NOTIFICATION (related_*)
-- USER → NOTIFICATION.triggered_by
+- USER → TASK.assigned_to (tâche reste mais assignation perdue)
+- NOTE/TASK/COMMENT/PROJECT → NOTIFICATION (related_*) (notification reste mais lien perdu)
+- USER → NOTIFICATION.triggered_by (notification reste mais déclencheur perdu)
 
 ---
 
@@ -578,7 +612,7 @@ frontend/
 
 | Feature | Responsabilité | Models | Priorité |
 |---------|---------------|--------|----------|
-| **accounts** | Authentification et gestion utilisateurs | UserProfile |  #1 ESSENTIEL |
+| **accounts** | Authentification et gestion utilisateurs | UserProfile (lié au User Django par défaut) |  #1 ESSENTIEL |
 | **projects** | Projets collaboratifs et membres | Project, ProjectMember |  #2 ESSENTIEL |
 | **tags** | Tags partagés pour classification | Tag |  #3 TRANSVERSAL |
 | **notes** | Notes | Note, NoteTag |  #4 CORE |
@@ -612,9 +646,11 @@ frontend/
 
 ---
 
-### sécurité 
+## 7. Sécurité 
 
-variable d'environnement stocké dans le fichier .env
+Variables d'environnement stockées dans le fichier `.env` :
+
+```bash
 # === DJANGO SETTINGS ===
 SECRET_KEY=ton_secret_key_super_long_et_aleatoire_ici
 DEBUG=True
@@ -633,57 +669,51 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 # === MEDIA FILES (fichiers uploadés) ===
 MEDIA_ROOT=/app/media
 MEDIA_URL=/media/
-organisé par type d'entité et eviter collision
+```
 
-### divers : 
+Organisation des fichiers uploadés par type d'entité pour éviter les collisions.
 
-Nous utiliserons github pour stocker le fichier mais pas besoin d'en parler
+---
 
-Migration créés par django automatiquement
+## 8. Divers
 
-Systeme de seeding Django fixtures (JSON)
+- **GitHub** : Utilisé pour stocker le code (pas besoin de détailler ici)
+- **Migrations** : Créées automatiquement par Django
+- **Système de seeding** : Django fixtures (JSON)
+- **Backup** : À définir lors du déploiement
+- **Système de routes** : Créé au fur et à mesure, logique et ordonné (pas besoin de détailler)
+- **Gestion des formulaires** : React natif
 
-backup à voir lorsque l'on fera le deploiement
+---
 
-le systeme de route sera fait au fur et a mesure et logique et ordonné par besoin de détailler ce point.
+## 9. Tests
 
-gestion des formulaire sera fait par react natif
+Implémentation de tests progressive au fur et à mesure du développement.
 
-### TESTS 
+**Types de tests :**
+- Tests Unitaires : Fonctions isolées, validations, propriétés modèles
+- Tests d'Intégration : Endpoints API complets (requête → DB → réponse)
+- Tests de Permissions : Vérifier accès par rôle pour chaque action
 
-implémentation de tests progressif au fur et a mesure du développement
+**Outils Backend (Django) :**
+- `pytest` : Framework de test moderne pour Python
+- `pytest-django` : Plugin pour intégrer Django avec pytest
+- `pytest-cov` : Mesure de la couverture de code
+- `factory_boy` : Génération de données de test (fixtures)
+- `django-test-plus` : Extensions utiles pour les tests Django
+- `black` : Formatteur de code Python
+- `flake8` : Linter pour détecter les erreurs de style et de syntaxe
+- `isort` : Trie les imports Python
 
-Tests Unitaires : Fonctions isolées, validations, propriétés modèles
-Tests d'Intégration : Endpoints API complets (requête → DB → réponse)
-Tests de Permissions : Vérifier accès par rôle pour chaque action
- - outils a utiliser
-Backend (Django)
-pytest : Framework de test moderne pour Python.
-pytest-django : Plugin pour intégrer Django avec pytest.
-pytest-cov : Mesure de la couverture de code.
-factory_boy : Génération de données de test (fixtures).
-django-test-plus : Extensions utiles pour les tests Django.
-black : Formatteur de code Python.
-flake8 : Linter pour détecter les erreurs de style et de syntaxe.
-isort : Trie les imports Python.
+**Outils Frontend (React) :**
+- `Jest` : Framework de test pour JavaScript/React
+- `@testing-library/react` : Utilitaires pour tester les composants React
+- `react-test-renderer` : Pour tester le rendu des composants
+- `eslint` : Linter pour JavaScript/React
+- `prettier` : Formatteur de code pour une cohérence visuelle
 
-Frontend (React)
-Jest : Framework de test pour JavaScript/React.
-@testing-library/react : Utilitaires pour tester les composants React.
-react-test-renderer : Pour tester le rendu des composants.
-eslint : Linter pour JavaScript/React.
-prettier : Formatteur de code pour une cohérence visuelle.
+---
 
-### documentation API
-génération par Django automatiquement
+## 10. Documentation API
 
-
-Bonjour Claude,
-
-Je développe ShareTech, une application web collaborative pour la gestion 
-de documentation et de tâches.
-
-Ma documentation complète est dans le fichier sharetech_sumup.txt joint.
-
-Après l'avoir lue, confirme ta compréhension de l'architecture globale 
-et propose-moi le plan détaillé pour démarrer le développement.
+Génération automatique par Django REST Framework.
