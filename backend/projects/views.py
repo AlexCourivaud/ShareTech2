@@ -68,7 +68,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         # Ajouter le créateur comme membre du projet
         ProjectMember.objects.create(project=project, user=self.request.user)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsLeadOrAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsLeadOrAdmin], serializer_class=AddMemberSerializer)
     def add_member(self, request, pk=None):
         """
         Ajoute un membre au projet
