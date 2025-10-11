@@ -2,10 +2,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.models import User
 from .serializers import UserSerializer, UserRegistrationSerializer
-
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -45,7 +44,7 @@ def login_view(request):
     user = authenticate(request, username=username, password=password)
     
     if user is not None:
-        login(request, user)
+        auth_login(request, user)
         return Response({
             'message': 'Connexion réussie',
             'user': UserSerializer(user).data
@@ -63,7 +62,7 @@ def logout_view(request):
     Déconnexion de l'utilisateur
     POST /api/accounts/logout/
     """
-    logout(request)
+    auth_logout(request)
     return Response({
         'message': 'Déconnexion réussie'
     }, status=status.HTTP_200_OK)
