@@ -26,10 +26,10 @@ urlpatterns = [
     path('api/accounts/', include('accounts.urls')),  
     #  path projects
     path('api/', include('projects.urls')), 
+    path('api/', include('tags.urls')),
 
 ]
 
 # Servir les fichiers media en développement
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-

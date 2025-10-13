@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     # ShareTech apps
     'accounts',
     'projects',
+    'tags',
 ]
 
 MIDDLEWARE = [
