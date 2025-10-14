@@ -27,6 +27,7 @@ urlpatterns = [
     #  path projects
     path('api/', include('projects.urls')), 
     path('api/', include('tags.urls')),
+    path('api/', include('notes.urls')),
 
 ]
 
