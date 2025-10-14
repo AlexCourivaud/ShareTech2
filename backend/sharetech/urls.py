@@ -29,6 +29,8 @@ urlpatterns = [
     path('api/', include('tags.urls')),
     path('api/', include('notes.urls')),
     path('api/', include('tasks.urls')),
+    path('api/', include('comments.urls')),
+
 ]
 
 # Servir les fichiers media en développement
