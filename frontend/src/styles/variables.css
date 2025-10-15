@@ -6,7 +6,7 @@
   /* === COULEURS PRINCIPALES === */
   --color-primary: #2563eb;        /* Bleu principal */
   --color-primary-dark: #1e40af;   /* Bleu foncé (hover, focus) */
-  --color-primary-light: #dbeafe;  /* Bleu clair (backgrounds) */
+  --color-primary-light: #a4c9f9;  /* Bleu clair (backgrounds) */
   
   --color-success: #16a34a;        /* Vert (succès) */
   --color-warning: #f59e0b;        /* Orange (attention) */
@@ -19,9 +19,9 @@
   --color-text-light: #9ca3af;    /* Texte désactivé */
   
   /* === BACKGROUNDS === */
-  --color-bg: #ffffff;             /* Fond principal */
-  --color-bg-secondary: #f9fafb;   /* Fond secondaire */
-  --color-bg-tertiary: #f3f4f6;    /* Fond tertiaire */
+  --color-bg: #1b3da0;             /* Fond principal */
+  --color-bg-secondary: #22466a;   /* Fond secondaire */
+  --color-bg-tertiary: #3c4b6a;    /* Fond tertiaire */
   
   /* === BORDURES === */
   --color-border: #e5e7eb;         /* Bordure standard */
