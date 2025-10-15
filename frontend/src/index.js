@@ -1,6 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
+
+// Import des CSS dans l'ordre
+import './styles/variables.css';  // Variables d'abord
+import './styles/reset.css';      // Reset ensuite
+import './styles/utilities.css';  // Utilitaires
+import './index.css';             // Styles globaux React (existe déjà)
+import './App.css';               // Styles App (existe déjà)
+
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
@@ -11,7 +18,4 @@ root.render(
   </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
