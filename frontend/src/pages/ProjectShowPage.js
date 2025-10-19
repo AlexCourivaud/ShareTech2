@@ -1,10 +1,16 @@
+// composants react
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+
+// composants navbar, api projet, api note
 import Navbar from '../components/layout/Navbar';
 import projectService from '../services/projectService';
 import noteService from '../services/noteService';
+
+// composant css
 import '../styles/pages/project-show.css';
 
+// constantes
 const ProjectShowPage = () => {
   const { id } = useParams();
   const [project, setProject] = useState(null);
@@ -13,11 +19,13 @@ const ProjectShowPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // chargement des données
   useEffect(() => {
-    loadData();
+    loadData(); 
   }, [id]);
 
   const loadData = async () => {
+    console.log('ID du projet:', id); // TODO a suppr
     try {
       setError(null);
       
@@ -26,6 +34,8 @@ const ProjectShowPage = () => {
 
       try {
         const notesData = await noteService.getByProject(id);
+        console.log('Notes reçues:', notesData); // TODO a suppr
+
         setNotes(notesData);
       } catch (e) {
         console.warn('Impossible de charger les notes');

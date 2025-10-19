@@ -1,6 +1,6 @@
 .home-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1e40af 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,72 +15,62 @@
 .home-page__hero {
   text-align: center;
   color: white;
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom: var(--spacing-xl);
 }
 
 .home-page__title {
   font-size: 4rem;
-  font-weight: var(--font-bold);
+  font-weight: 700;
   margin-bottom: var(--spacing-lg);
-  text-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .home-page__slogan {
   font-size: var(--text-xl);
-  margin-bottom: var(--spacing-2xl);
-  opacity: 0.95;
+  margin-bottom: var(--spacing-xl);
 }
 
 .home-page__cta {
   display: inline-block;
-  padding: var(--spacing-md) var(--spacing-2xl);
+  padding: var(--spacing-md) var(--spacing-xl);
   background-color: white;
   color: var(--color-primary);
   font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  border-radius: var(--radius-lg);
-  text-decoration: none;
-  transition: all var(--transition-base);
-  box-shadow: var(--shadow-lg);
+  font-weight: 600;
+  border-radius: var(--radius);
+  transition: transform 0.2s;
 }
 
 .home-page__cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
 }
 
 .home-page__features {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-xl);
-  margin-top: var(--spacing-2xl);
+  gap: var(--spacing-lg);
 }
 
 .home-page__feature {
   background-color: white;
   padding: var(--spacing-xl);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius);
   text-align: center;
 }
 
 .home-page__feature h3 {
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
   margin-bottom: var(--spacing-md);
   color: var(--color-primary);
 }
 
 .home-page__feature p {
-  color: var(--color-text-muted);
-  line-height: 1.6;
+  color: var(--color-text-secondary);
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .home-page__title {
     font-size: 2.5rem;
   }
-
   .home-page__features {
     grid-template-columns: 1fr;
   }

@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-bg-page);
   padding: var(--spacing-md);
 }
 
@@ -11,9 +11,9 @@
   width: 100%;
   max-width: 400px;
   background-color: var(--color-bg);
-  padding: var(--spacing-2xl);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-xl);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .login-page__header {
@@ -22,15 +22,15 @@
 }
 
 .login-page__title {
-  font-size: var(--text-3xl);
-  font-weight: var(--font-bold);
+  font-size: var(--text-2xl);
+  font-weight: 700;
   color: var(--color-primary);
   margin-bottom: var(--spacing-sm);
 }
 
 .login-page__subtitle {
   font-size: var(--text-base);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .login-page__form {
@@ -39,9 +39,9 @@
 
 .login-page__error {
   padding: var(--spacing-md);
-  background-color: #fee2e2;
+  background-color: #fee;
   border: 1px solid var(--color-danger);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   color: var(--color-danger);
   font-size: var(--text-sm);
   margin-bottom: var(--spacing-md);
@@ -51,4 +51,6 @@
   text-align: center;
   padding-top: var(--spacing-lg);
   border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
 }

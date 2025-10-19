@@ -28,9 +28,18 @@ Réduire la dispersion entre outils de documentation et de gestion de projet en 
 
 Starting a project : 
 
+
+
 Lancer docker :
 
 CheatSheet Docker :
 
+Créer les containers : docker-compose up --build -d
+
 Voir le statut des containers : docker-compose ps
 
+lancer les migrations :
+docker-compose exec backend python manage.py migrate
+
+voir si des migrations sont en attente : 
+docker-compose exec backend python manage.py showmigrations --plan

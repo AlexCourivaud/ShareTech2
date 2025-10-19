@@ -2,7 +2,7 @@
   background-color: var(--color-primary);
   color: white;
   padding: var(--spacing-md) 0;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow);
 }
 
 .navbar__container {
@@ -15,10 +15,9 @@
 }
 
 .navbar__logo {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
+  font-size: var(--text-xl);
+  font-weight: 700;
   color: white;
-  text-decoration: none;
 }
 
 .navbar__links {
@@ -28,9 +27,8 @@
 
 .navbar__link {
   color: white;
-  text-decoration: none;
-  font-weight: var(--font-medium);
-  transition: opacity var(--transition-fast);
+  font-weight: 500;
+  transition: opacity 0.2s;
 }
 
 .navbar__link:hover {
@@ -45,4 +43,5 @@
 
 .navbar__user {
   font-size: var(--text-sm);
+  color: white;
 }
