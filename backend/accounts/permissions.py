@@ -78,7 +78,7 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
 
 class IsSeniorOrOwner(permissions.BasePermission):
     """
-    Senior+ ont accès total.
+    Senior et + ont accès total.
     Junior uniquement à leurs propres objets.
     """
     ALLOWED_ROLES = ['senior', 'lead', 'admin']

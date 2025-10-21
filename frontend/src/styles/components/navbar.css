@@ -20,21 +20,6 @@
   color: white;
 }
 
-.navbar__links {
-  display: flex;
-  gap: var(--spacing-lg);
-}
-
-.navbar__link {
-  color: white;
-  font-weight: 500;
-  transition: opacity 0.2s;
-}
-
-.navbar__link:hover {
-  opacity: 0.8;
-}
-
 .navbar__actions {
   display: flex;
   align-items: center;

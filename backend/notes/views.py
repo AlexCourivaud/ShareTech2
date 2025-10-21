@@ -15,26 +15,25 @@ from .serializers import (
 class NoteViewSet(viewsets.ModelViewSet):
     """
     ViewSet pour gérer les notes
-    
-    Permissions :
-    - Liste/Détail : Tous les utilisateurs authentifiés (membres du projet)
-    - Création : Tous les utilisateurs authentifiés
-    - Modification : Auteur ou Senior+
-    - Suppression : Auteur ou Senior+
+    - Liste/Détail 
+    - Création 
+    - Modification 
+    - Suppression 
     """
     permission_classes = [IsAuthenticated]
-    
+        
     def get_queryset(self):
-        """
-        Retourne les notes accessibles par l'utilisateur
-        - Notes des projets dont il est membre
-        - Notes qu'il a créées
-        """
         user = self.request.user
+        
+        # Superuser
+        if user.is_superuser:
+            return Note.objects.all().select_related('author', 'project').prefetch_related('note_tags__tag')
+        
         return Note.objects.filter(
             Q(project__members__user=user) | Q(author=user)
         ).distinct().select_related('author', 'project').prefetch_related('note_tags__tag')
     
+
     def get_serializer_class(self):
         """
         Utilise différents serializers selon l'action
@@ -59,9 +58,9 @@ class NoteViewSet(viewsets.ModelViewSet):
         """
         note = self.get_object()
         
-        # Vérifier les permissions : auteur ou Senior+
+        # Vérifier les permissions : auteur ou Senior et +
         if note.author != request.user:
-            # Vérifier si Senior+
+            # Vérifier si Senior et +
             user_role = request.user.profile.role
             if user_role not in ['senior', 'lead', 'admin']:
                 return Response(
@@ -78,7 +77,7 @@ class NoteViewSet(viewsets.ModelViewSet):
         """
         note = self.get_object()
         
-        # Vérifier les permissions : auteur ou Senior+
+        # Vérifier les permissions : auteur ou Senior et +
         if note.author != request.user:
             user_role = request.user.profile.role
             if user_role not in ['senior', 'lead', 'admin']:

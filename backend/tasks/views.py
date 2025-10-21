@@ -19,23 +19,26 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """
-        Retourne les tâches accessibles selon le rôle :
-        - Junior/Senior : Ses tâches assignées + tâches ouvertes (non assignées)
-        - Lead+ : Toutes les tâches
-        """
         user = self.request.user
+        queryset = Task.objects.all()
         
-        # Lead+ : accès à toutes les tâches
-        if user.profile.role in ['lead', 'admin']:
-            return Task.objects.all()
+        # Filtrage par projet
+        project_id = self.request.query_params.get('project', None)
+        if project_id is not None:
+            queryset = queryset.filter(project_id=project_id)
+            # Si filtré par projet, retourner TOUTES les tâches du projet
+            # (pour que les membres voient toutes les tâches)
+            return queryset
         
-        # Junior/Senior : ses tâches + tâches ouvertes
-        return Task.objects.filter(
-            Q(assigned_to=user) |  # Ses tâches assignées
-            Q(assigned_to__isnull=True)  # Tâches non assignées
+        # Sans filtre projet : permissions selon rôle
+        if user.is_superuser or user.profile.role in ['lead', 'admin']:
+            return queryset
+        
+        # Junior/Senior sans filtre projet : leurs tâches + ouvertes
+        return queryset.filter(
+            Q(assigned_to=user) | Q(assigned_to__isnull=True)
         ).distinct()
-    
+        
     def get_serializer_class(self):
         """Choisir le serializer selon l'action"""
         if self.action == 'list':
@@ -50,14 +53,11 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer.save(created_by=self.request.user)
     
     def update(self, request, *args, **kwargs):
-        """
-        Modifier une tâche
-        Permissions : Lead+ peut tout modifier, autres ne peuvent modifier que leurs tâches
-        """
+        """Modifier une tâche"""
         task = self.get_object()
         
         # Vérifier les permissions
-        if request.user.profile.role not in ['lead', 'admin']:
+        if not request.user.is_superuser and request.user.profile.role not in ['lead', 'admin']:
             # Junior/Senior ne peuvent modifier que leurs tâches assignées
             if task.assigned_to != request.user:
                 return Response(
@@ -68,26 +68,21 @@ class TaskViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
     
     def destroy(self, request, *args, **kwargs):
-        """
-        Supprimer une tâche
-        Permissions : Seulement Lead+
-        """
-        if request.user.profile.role not in ['lead', 'admin']:
+        """Supprimer une tâche"""
+        if not request.user.is_superuser and request.user.profile.role not in ['lead', 'admin']:
             return Response(
-                {'error': 'Seuls les Lead+ peuvent supprimer des tâches.'},
+                {'error': 'Vous ne pouvez pas supprimer de tâches.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
         return super().destroy(request, *args, **kwargs)
+    
     @action(detail=True, methods=['post'])
     def assign(self, request, pk=None):
-        """
-        Assigner une tâche à un utilisateur
-        Permissions : Lead+ uniquement
-        """
-        if request.user.profile.role not in ['lead', 'admin']:
+        """Assigner une tâche à un utilisateur"""
+        if not request.user.is_superuser and request.user.profile.role not in ['lead', 'admin']:
             return Response(
-                {'error': 'Seuls les Lead+ peuvent assigner des tâches.'},
+                {'error': 'Vous ne pouvez pas assigner de tâches.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -99,7 +94,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             user = User.objects.get(id=user_id)
             
             task.assigned_to = user
-            task.status = 'assignee'  # Changer le statut automatiquement
+            task.status = 'assignee'
             task.save()
             
             return Response({
@@ -111,13 +106,10 @@ class TaskViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def unassign(self, request, pk=None):
-        """
-        Retirer l'assignation d'une tâche
-        Permissions : Lead+ uniquement
-        """
-        if request.user.profile.role not in ['lead', 'admin']:
+        """Retirer l'assignation d'une tâche"""
+        if not request.user.is_superuser and request.user.profile.role not in ['lead', 'admin']:
             return Response(
-                {'error': 'Seuls les Lead+ peuvent désassigner des tâches.'},
+                {'error': 'Vous ne pouvez désassigner de tâches.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -130,7 +122,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
         
         task.assigned_to = None
-        task.status = 'ouverte'  # Retour au statut "ouverte"
+        task.status = 'ouverte'
         task.save()
         
         return Response({
@@ -140,14 +132,10 @@ class TaskViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def change_status(self, request, pk=None):
-        """
-        Changer le statut d'une tâche
-        Permissions : Assigné peut changer son statut, Lead+ peut tout changer
-        """
+        """Changer le statut d'une tâche"""
         task = self.get_object()
         new_status = request.data.get('status')
         
-        # Vérifier que le statut est valide
         valid_statuses = ['ouverte', 'assignee', 'terminee']
         if new_status not in valid_statuses:
             return Response(
@@ -156,15 +144,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
         
         # Vérifier les permissions
-        if request.user.profile.role not in ['lead', 'admin']:
-            # L'utilisateur doit être assigné à la tâche
+        if not request.user.is_superuser and request.user.profile.role not in ['lead', 'admin']:
             if task.assigned_to != request.user:
                 return Response(
-                    {'error': 'Seul l\'assigné ou Lead+ peut changer le statut.'},
+                    {'error': 'Vous ne pouvez changer le statut.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
         
-        # Logique métier : si on passe à "terminee", ajouter la date de complétion
+        # Si terminée, ajouter date de complétion
         if new_status == 'terminee' and task.status != 'terminee':
             from django.utils import timezone
             task.completed_date = timezone.now().date()
@@ -180,36 +167,14 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my_tasks(self, request):
         """
-        Récupérer uniquement les tâches assignées à l'utilisateur connecté
+        Récupérer les tâches accessibles
+        - Superuser : TOUTES les tâches
+        - Autres : Seulement leurs tâches assignées
         """
-        tasks = Task.objects.filter(assigned_to=request.user)
-        serializer = TaskListSerializer(tasks, many=True)
-        return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'])
-    def by_project(self, request):
-        """
-        Filtrer les tâches par projet
-        Query param : ?project_id=1
-        """
-        project_id = request.query_params.get('project_id')
-        
-        if not project_id:
-            return Response(
-                {'error': 'Le paramètre project_id est requis.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Récupérer les tâches selon les permissions
-        user = request.user
-        if user.profile.role in ['lead', 'admin']:
-            tasks = Task.objects.filter(project_id=project_id)
+        if request.user.is_superuser:
+            tasks = Task.objects.all()
         else:
-            tasks = Task.objects.filter(
-                project_id=project_id
-            ).filter(
-                Q(assigned_to=user) | Q(assigned_to__isnull=True)
-            )
+            tasks = Task.objects.filter(assigned_to=request.user)
         
         serializer = TaskListSerializer(tasks, many=True)
         return Response(serializer.data)

@@ -53,7 +53,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         # Vérifier que la note existe
         note = get_object_or_404(Note, id=note_id)
         
-        # Vérifier que l'utilisateur a accès à cette note (membre du projet ou Senior+)
+        # Vérifier que l'utilisateur a accès à cette note (membre du projet ou Senior et +)
         user = request.user
         if user.profile.role not in ['senior', 'lead', 'admin']:
             if not note.project.members.filter(user=user).exists():
@@ -76,7 +76,6 @@ class CommentViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         """
         Modifier un commentaire
-        Permissions : Auteur uniquement ou Senior+
         """
         comment = self.get_object()
         
@@ -95,7 +94,6 @@ class CommentViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """
         Supprimer un commentaire
-        Permissions : Auteur uniquement ou Senior+
         """
         comment = self.get_object()
         
