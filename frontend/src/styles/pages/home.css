@@ -1,0 +1,77 @@
+.home-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1e40af 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+}
+
+.home-page__container {
+  width: 100%;
+  max-width: 1200px;
+}
+
+.home-page__hero {
+  text-align: center;
+  color: white;
+  margin-bottom: var(--spacing-xl);
+}
+
+.home-page__title {
+  font-size: 4rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-lg);
+}
+
+.home-page__slogan {
+  font-size: var(--text-xl);
+  margin-bottom: var(--spacing-xl);
+}
+
+.home-page__cta {
+  display: inline-block;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background-color: white;
+  color: var(--color-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  border-radius: var(--radius);
+  transition: transform 0.2s;
+}
+
+.home-page__cta:hover {
+  transform: translateY(-2px);
+}
+
+.home-page__features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-lg);
+}
+
+.home-page__feature {
+  background-color: white;
+  padding: var(--spacing-xl);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.home-page__feature h3 {
+  font-size: var(--text-lg);
+  margin-bottom: var(--spacing-md);
+  color: var(--color-primary);
+}
+
+.home-page__feature p {
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 768px) {
+  .home-page__title {
+    font-size: 2.5rem;
+  }
+  .home-page__features {
+    grid-template-columns: 1fr;
+  }
+}
