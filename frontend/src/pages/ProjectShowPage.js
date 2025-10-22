@@ -85,7 +85,7 @@ const ProjectShowPage = () => {
         {/* COLONNE GAUCHE : Notes */}
         <div className="project-show-page__left">
           <div className="project-show-page__section">
-            <h2>📝 Notes ({notes.length})</h2>
+            <h2>Notes du projet ({notes.length})</h2>
             <div className="project-show-page__notes-list">
               {notes.length > 0 ? (
                 notes.map((note) => (
@@ -145,7 +145,7 @@ const ProjectShowPage = () => {
 
           {/* BAS : Tâches */}
           <div className="project-show-page__tasks">
-            <h2>✅ Tâches ({tasks.length})</h2>
+            <h2>Tâches du projet ({tasks.length})</h2>
             <div className="tasks-list">
               {tasks.length > 0 ? (
                 tasks.map((task) => (
