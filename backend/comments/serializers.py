@@ -12,9 +12,9 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = [
             'id', 'content', 'author', 'parent_comment', 
-            'is_edited', 'like_count', 'created_at', 'updated_at', 'replies'
+            'is_edited', 'created_at', 'updated_at', 'replies'
         ]
-        read_only_fields = ['id', 'author', 'is_edited', 'like_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'author', 'is_edited', 'created_at', 'updated_at']
     
     def get_replies(self, obj):
         """Récupérer récursivement toutes les réponses"""
@@ -25,21 +25,13 @@ class CommentSerializer(serializers.ModelSerializer):
 
 class CommentWriteSerializer(serializers.ModelSerializer):
     """Serializer pour créer/modifier un commentaire"""
-    note_id = serializers.IntegerField(write_only=True, required=False)
     
     class Meta:
         model = Comment
-        fields = ['note_id', 'content', 'parent_comment']
+        fields = [ 'content', 'parent_comment']  
     
     def validate_content(self, value):
         """Validation minimale : juste non vide"""
         if not value or len(value.strip()) == 0:
             raise serializers.ValidationError("Le commentaire ne peut pas être vide.")
         return value
-    
-    def update(self, instance, validated_data):
-        """Marquer le commentaire comme modifié"""
-        instance.content = validated_data.get('content', instance.content)
-        instance.is_edited = True
-        instance.save()
-        return instance

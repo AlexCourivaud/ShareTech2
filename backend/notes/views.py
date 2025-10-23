@@ -135,3 +135,35 @@ class NoteViewSet(viewsets.ModelViewSet):
         )
         serializer = NoteListSerializer(notes, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['get', 'post'])
+    def comments(self, request, pk=None):
+        """
+        GET  /api/notes/{id}/comments/  - Liste les commentaires
+        POST /api/notes/{id}/comments/  - Créer un commentaire
+        """
+        note = self.get_object()
+        
+        if request.method == 'GET':
+            from comments.models import Comment
+            from comments.serializers import CommentSerializer
+            
+            comments = Comment.objects.filter(note=note, parent_comment__isnull=True)
+            serializer = CommentSerializer(comments, many=True)
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+            from comments.models import Comment
+            from comments.serializers import CommentWriteSerializer
+            
+            serializer = CommentWriteSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(author=request.user, note=note)
+                
+                from comments.serializers import CommentSerializer
+                return Response(
+                    CommentSerializer(serializer.instance).data,
+                    status=status.HTTP_201_CREATED
+                )
+            
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
