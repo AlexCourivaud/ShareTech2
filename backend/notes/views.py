@@ -21,6 +21,7 @@ class NoteViewSet(viewsets.ModelViewSet):
     - Suppression 
     """
     permission_classes = [IsAuthenticated]
+    serializer_class = NoteDetailSerializer
         
     def get_queryset(self):
         user = self.request.user
@@ -32,18 +33,6 @@ class NoteViewSet(viewsets.ModelViewSet):
         return Note.objects.filter(
             Q(project__members__user=user) | Q(author=user)
         ).distinct().select_related('author', 'project').prefetch_related('note_tags__tag')
-    
-
-    def get_serializer_class(self):
-        """
-        Utilise différents serializers selon l'action
-        """
-        if self.action == 'list':
-            return NoteListSerializer
-        elif self.action in ['create', 'update', 'partial_update']:
-            return NoteCreateUpdateSerializer
-        else:
-            return NoteDetailSerializer
     
     def perform_create(self, serializer):
         """

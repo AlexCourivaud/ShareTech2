@@ -4,6 +4,8 @@ import Navbar from "../components/layout/Navbar";
 import projectService from "../services/projectService";
 import noteService from "../services/noteService";
 import taskService from "../services/taskService";
+import commentService from "../services/commentService";
+import CommentSection from "../components/comments/CommentSection";
 import "../styles/pages/project-show.css";
 
 const ProjectShowPage = () => {
@@ -12,6 +14,7 @@ const ProjectShowPage = () => {
   const [notes, setNotes] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [members, setMembers] = useState([]);
+  const [expandedNoteId, setExpandedNoteId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -28,7 +31,20 @@ const ProjectShowPage = () => {
 
       try {
         const notesData = await noteService.getByProject(id);
-        setNotes(notesData);
+        console.log(" NOTES DATA:", notesData); // TODO test
+        const notesWithComments = await Promise.all(
+          notesData.map(async (note) => {
+            console.log("UNE NOTE:", note); // TODO test2
+            try {
+              const comments = await commentService.getCommentsByNote(note.id);
+              return { ...note, commentsCount: comments.length };
+            } catch {
+              return { ...note, commentsCount: 0 };
+            }
+          })
+        );
+
+        setNotes(notesWithComments);
       } catch (e) {
         console.warn("Impossible de charger les notes");
         setNotes([]);
@@ -57,7 +73,11 @@ const ProjectShowPage = () => {
     }
   };
 
-  if (loading)
+  const toggleNote = (noteId) => {
+    setExpandedNoteId(expandedNoteId === noteId ? null : noteId);
+  };
+
+  if (loading) {
     return (
       <div className="project-show-page">
         <Navbar />
@@ -66,8 +86,9 @@ const ProjectShowPage = () => {
         </div>
       </div>
     );
+  }
 
-  if (error || !project)
+  if (error || !project) {
     return (
       <div className="project-show-page">
         <Navbar />
@@ -76,13 +97,13 @@ const ProjectShowPage = () => {
         </div>
       </div>
     );
+  }
 
   return (
     <div className="project-show-page">
       <Navbar />
 
       <div className="project-show-page__layout">
-        {/* COLONNE GAUCHE : Notes */}
         <div className="project-show-page__left">
           <div className="project-show-page__section">
             <h2>Notes du projet ({notes.length})</h2>
@@ -90,10 +111,26 @@ const ProjectShowPage = () => {
               {notes.length > 0 ? (
                 notes.map((note) => (
                   <div key={note.id} className="note-card">
-                    <h4>{note.title}</h4>
-                    <p className="note-excerpt">
-                      {note.excerpt || note.content?.substring(0, 150)}...
-                    </p>
+                    <div
+                      className="note-card__header"
+                      onClick={() => toggleNote(note.id)}
+                    >
+                      <h4>{note.title}</h4>
+                      <p className="note-excerpt">{note.content}</p>
+                      <small className="note-meta">
+                        👤 {note.author_username} | Crée le 📅{" "}
+                        {new Date(note.created_at).toLocaleDateString()} | 💬{" "}
+                        {note.commentsCount || 0} commentaire
+                        {note.commentsCount !== 1 ? "s" : ""}
+                      </small>
+                    </div>
+
+                    {expandedNoteId === note.id && (
+                      <div className="note-card__expanded">
+                        <div className="note-content">{note.content}</div>
+                        <CommentSection noteId={note.id} />
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (
@@ -103,28 +140,22 @@ const ProjectShowPage = () => {
           </div>
         </div>
 
-        {/* COLONNE DROITE */}
         <div className="project-show-page__right">
-          {/* HAUT : Infos projet */}
           <div className="project-show-page__project-info">
-            {/* Image projet */}
             <div className="project-image-placeholder">
-              <span className="image-icon">📷</span>
+              <span className="image-icon">photo du projet</span>
             </div>
 
-            {/* Détails projet */}
             <div className="project-details">
               <h1>{project.name}</h1>
               <p className="project-description">{project.description}</p>
             </div>
 
-            {/* Participants */}
             <div className="project-members">
               <h3>👥 Participants ({members.length})</h3>
               <div className="members-list">
                 {members.length > 0 ? (
                   members.map((member) => {
-                    // Vérification de sécurité
                     const username =
                       member.user?.username || member.username || "Utilisateur";
                     const initial = username.charAt(0).toUpperCase();
@@ -143,7 +174,6 @@ const ProjectShowPage = () => {
             </div>
           </div>
 
-          {/* BAS : Tâches */}
           <div className="project-show-page__tasks">
             <h2>Tâches du projet ({tasks.length})</h2>
             <div className="tasks-list">
