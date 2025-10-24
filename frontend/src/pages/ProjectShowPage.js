@@ -15,12 +15,44 @@ const ProjectShowPage = () => {
   const [tasks, setTasks] = useState([]);
   const [members, setMembers] = useState([]);
   const [expandedNoteId, setExpandedNoteId] = useState(null);
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // États pour les formulaires
+  const [createFormData, setCreateFormData] = useState({
+    title: "",
+    content: "",
+  });
+  const [editFormData, setEditFormData] = useState({ title: "", content: "" });
+
+  // Utilisateur connecté (récupéré du contexte normalement, ici simplifié)
+  const [currentUser, setCurrentUser] = useState(null);
+
   useEffect(() => {
     loadData();
+    loadCurrentUser();
   }, [id]);
+
+  const loadCurrentUser = async () => {
+    try {
+      // Simule la récupération du user depuis AuthContext ou API
+      // Pour l'instant, on va checker directement via l'API profile
+      const response = await fetch(
+        "http://localhost:8000/api/accounts/profile/",
+        {
+          credentials: "include",
+        }
+      );
+      if (response.ok) {
+        const userData = await response.json();
+        setCurrentUser(userData);
+      }
+    } catch (e) {
+      console.warn("Impossible de charger l'utilisateur");
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -31,10 +63,9 @@ const ProjectShowPage = () => {
 
       try {
         const notesData = await noteService.getByProject(id);
-        console.log(" NOTES DATA:", notesData); // TODO test
+
         const notesWithComments = await Promise.all(
           notesData.map(async (note) => {
-            console.log("UNE NOTE:", note); // TODO test2
             try {
               const comments = await commentService.getCommentsByNote(note.id);
               return { ...note, commentsCount: comments.length };
@@ -75,6 +106,73 @@ const ProjectShowPage = () => {
 
   const toggleNote = (noteId) => {
     setExpandedNoteId(expandedNoteId === noteId ? null : noteId);
+    setEditingNoteId(null); // Ferme le mode édition si ouvert
+  };
+
+  // Vérifier si l'utilisateur peut modifier/supprimer une note
+  const canEditNote = (note) => {
+    if (!currentUser) return false;
+    return (
+      note.author_username === currentUser.username ||
+      currentUser.profile?.role === "admin"
+    );
+  };
+
+  // CRÉATION
+  const handleCreateNote = async (e) => {
+    e.preventDefault();
+
+    if (!createFormData.title.trim() || !createFormData.content.trim()) {
+      alert("Titre et contenu requis");
+      return;
+    }
+
+    try {
+      await noteService.createNote(id, createFormData);
+      setCreateFormData({ title: "", content: "" });
+      setShowCreateForm(false);
+      loadData(); // Recharger les notes
+    } catch (error) {
+      console.error("Erreur création note:", error);
+      alert("Erreur lors de la création de la note");
+    }
+  };
+
+  // MODIFICATION
+  const startEditNote = (note) => {
+    setEditingNoteId(note.id);
+    setEditFormData({ title: note.title, content: note.content });
+  };
+
+  const handleUpdateNote = async (noteId) => {
+    if (!editFormData.title.trim() || !editFormData.content.trim()) {
+      alert("Titre et contenu requis");
+      return;
+    }
+
+    try {
+      await noteService.updateNote(noteId, editFormData);
+      setEditingNoteId(null);
+      loadData(); // Recharger les notes
+    } catch (error) {
+      console.error("Erreur modification note:", error);
+      alert("Erreur lors de la modification de la note");
+    }
+  };
+
+  // SUPPRESSION
+  const handleDeleteNote = async (noteId) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
+      return;
+    }
+
+    try {
+      await noteService.deleteNote(noteId);
+      loadData(); // Recharger les notes
+    } catch (error) {
+      console.error("Erreur suppression note:", error);
+      alert("Erreur lors de la suppression de la note");
+    }
   };
 
   if (loading) {
@@ -106,30 +204,152 @@ const ProjectShowPage = () => {
       <div className="project-show-page__layout">
         <div className="project-show-page__left">
           <div className="project-show-page__section">
-            <h2>Notes du projet ({notes.length})</h2>
+            <div className="notes-header">
+              <h2>Notes du projet ({notes.length})</h2>
+              <button
+                className="btn-create-note"
+                onClick={() => setShowCreateForm(!showCreateForm)}
+              >
+                {showCreateForm ? "Annuler" : "+ Nouvelle note"}
+              </button>
+            </div>
+
+            {/* FORMULAIRE CRÉATION */}
+            {showCreateForm && (
+              <form onSubmit={handleCreateNote} className="note-form">
+                <input
+                  type="text"
+                  placeholder="Titre de la note"
+                  value={createFormData.title}
+                  onChange={(e) =>
+                    setCreateFormData({
+                      ...createFormData,
+                      title: e.target.value,
+                    })
+                  }
+                  className="note-form-input"
+                />
+                <textarea
+                  placeholder="Contenu de la note"
+                  value={createFormData.content}
+                  onChange={(e) =>
+                    setCreateFormData({
+                      ...createFormData,
+                      content: e.target.value,
+                    })
+                  }
+                  className="note-form-textarea"
+                  rows="6"
+                />
+                <div className="note-form-actions">
+                  <button type="submit" className="btn-save">
+                    Enregistrer
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setCreateFormData({ title: "", content: "" });
+                    }}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* LISTE DES NOTES */}
             <div className="project-show-page__notes-list">
               {notes.length > 0 ? (
                 notes.map((note) => (
                   <div key={note.id} className="note-card">
-                    <div
-                      className="note-card__header"
-                      onClick={() => toggleNote(note.id)}
-                    >
-                      <h4>{note.title}</h4>
-                      {/* <p className="note-excerpt">{note.content}</p> */}
-                      <small className="note-meta">
-                        👤 {note.author_username} | Crée le 📅{" "}
-                        {new Date(note.created_at).toLocaleDateString()} | 💬{" "}
-                        {note.commentsCount || 0} commentaire
-                        {note.commentsCount !== 1 ? "s" : ""}
-                      </small>
-                    </div>
-
-                    {expandedNoteId === note.id && (
-                      <div className="note-card__expanded">
-                        <div className="note-content">{note.content}</div>
-                        <CommentSection noteId={note.id} />
+                    {editingNoteId === note.id ? (
+                      // MODE ÉDITION
+                      <div className="note-edit-form">
+                        <input
+                          type="text"
+                          value={editFormData.title}
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              title: e.target.value,
+                            })
+                          }
+                          className="note-form-input"
+                        />
+                        <textarea
+                          value={editFormData.content}
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              content: e.target.value,
+                            })
+                          }
+                          className="note-form-textarea"
+                          rows="8"
+                        />
+                        <div className="note-form-actions">
+                          <button
+                            className="btn-save"
+                            onClick={() => handleUpdateNote(note.id)}
+                          >
+                            Enregistrer
+                          </button>
+                          <button
+                            className="btn-cancel"
+                            onClick={() => setEditingNoteId(null)}
+                          >
+                            Annuler
+                          </button>
+                        </div>
                       </div>
+                    ) : (
+                      // MODE AFFICHAGE
+                      <>
+                        <div
+                          className="note-card__header"
+                          onClick={() => toggleNote(note.id)}
+                        >
+                          <h4>{note.title}</h4>
+                          <p className="note-excerpt">
+                            {note.content?.substring(0, 150)}
+                            {note.content?.length > 150 ? "..." : ""}
+                          </p>
+                          <small className="note-meta">
+                            {note.author_username} | {" "}
+                            {new Date(note.created_at).toLocaleDateString()} |
+                             {note.commentsCount || 0} commentaire
+                            {note.commentsCount !== 1 ? "s" : ""}
+                          </small>
+                        </div>
+
+                        {expandedNoteId === note.id && (
+                          <div className="note-card__expanded">
+                            <div className="note-content-header">
+                              <h3>{note.title}</h3>
+                              {canEditNote(note) && (
+                                <div className="note-actions">
+                                  <button
+                                    className="btn-edit"
+                                    onClick={() => startEditNote(note)}
+                                  >
+                                    Modifier
+                                  </button>
+                                  <button
+                                    className="btn-delete"
+                                    onClick={() => handleDeleteNote(note.id)}
+                                  >
+                                    Supprimer
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="note-content">{note.content}</div>
+                            <CommentSection noteId={note.id} />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ))
@@ -142,17 +362,17 @@ const ProjectShowPage = () => {
 
         <div className="project-show-page__right">
           <div className="project-show-page__project-info">
-            <div className="project-image-placeholder">
-              <span className="image-icon">photo du projet</span>
-            </div>
-
             <div className="project-details">
               <h1>{project.name}</h1>
               <p className="project-description">{project.description}</p>
             </div>
 
+            <div className="project-image-placeholder">
+              <span className="image-icon"></span>
+            </div>
+
             <div className="project-members">
-              <h3>👥 Participants ({members.length})</h3>
+              <h3>Participants ({members.length})</h3>
               <div className="members-list">
                 {members.length > 0 ? (
                   members.map((member) => {
