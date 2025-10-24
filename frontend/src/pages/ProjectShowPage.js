@@ -116,7 +116,7 @@ const ProjectShowPage = () => {
                       onClick={() => toggleNote(note.id)}
                     >
                       <h4>{note.title}</h4>
-                      <p className="note-excerpt">{note.content}</p>
+                      {/* <p className="note-excerpt">{note.content}</p> */}
                       <small className="note-meta">
                         👤 {note.author_username} | Crée le 📅{" "}
                         {new Date(note.created_at).toLocaleDateString()} | 💬{" "}

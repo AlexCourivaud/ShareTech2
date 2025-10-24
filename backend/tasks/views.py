@@ -15,8 +15,8 @@ from .serializers import (
 from accounts.permissions import IsLeadOrAdmin
 
 class TaskViewSet(viewsets.ModelViewSet):
-    """ViewSet pour gérer les tâches"""
     permission_classes = [IsAuthenticated]
+    serializer_class = TaskDetailSerializer
     
     def get_queryset(self):
         user = self.request.user
@@ -38,15 +38,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         return queryset.filter(
             Q(assigned_to=user) | Q(assigned_to__isnull=True)
         ).distinct()
-        
-    def get_serializer_class(self):
-        """Choisir le serializer selon l'action"""
-        if self.action == 'list':
-            return TaskListSerializer
-        elif self.action in ['create', 'update', 'partial_update']:
-            return TaskCreateUpdateSerializer
-        else:
-            return TaskDetailSerializer
     
     def perform_create(self, serializer):
         """Créer la tâche avec created_by = utilisateur connecté"""
