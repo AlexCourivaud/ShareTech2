@@ -61,12 +61,6 @@
   color: #111827;
 }
 
-.note-excerpt {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #6b7280;
-  line-height: 1.5;
-}
 
 /* === COLONNE DROITE === */
 .project-show-page__right {
@@ -537,7 +531,7 @@
 
 .btn-edit {
   padding: 0.5rem 1rem;
-  background: #f59e0b;
+  background: #3b82f6;
   color: white;
   border: none;
   border-radius: 6px;
@@ -547,12 +541,12 @@
 }
 
 .btn-edit:hover {
-  background: #d97706;
+  background: #2563eb;
 }
 
 .btn-delete {
   padding: 0.5rem 1rem;
-  background: #ef4444;
+  background: #3b82f6;
   color: white;
   border: none;
   border-radius: 6px;
@@ -562,7 +556,7 @@
 }
 
 .btn-delete:hover {
-  background: #dc2626;
+  background: #2563eb;
 }
 
 /* Responsive boutons */

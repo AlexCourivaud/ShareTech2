@@ -12,7 +12,7 @@ const noteService = {
   },
 
   createNote: async (projectId, data) => {
-    const response = await apiConfig.post("/api/notes/", {
+    const response = await api.post("/api/notes/", {
       ...data,
       project: projectId,
     });
@@ -20,12 +20,12 @@ const noteService = {
   },
 
   updateNote: async (noteId, data) => {
-    const response = await apiConfig.put(`/api/notes/${noteId}/`, data);
+    const response = await api.put(`/api/notes/${noteId}/`, data);
     return response.data;
   },
 
   deleteNote: async (noteId) => {
-    await apiConfig.delete(`/api/notes/${noteId}/`);
+    await api.delete(`/api/notes/${noteId}/`);
   },
 };
 

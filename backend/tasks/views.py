@@ -6,35 +6,35 @@ from django.db.models import Q
 from django.contrib.auth.models import User
 
 from .models import Task, TaskTag
-from .serializers import (
-    TaskListSerializer,
-    TaskDetailSerializer,
-    TaskCreateUpdateSerializer,
-    AssignTaskSerializer
-)
-from accounts.permissions import IsLeadOrAdmin
+from .serializers import TaskSerializer, AssignTaskSerializer
+
 
 class TaskViewSet(viewsets.ModelViewSet):
+    """ViewSet pour gérer les tâches"""
     permission_classes = [IsAuthenticated]
-    serializer_class = TaskDetailSerializer
+    serializer_class = TaskSerializer  # ✅ Un seul serializer pour tout le CRUD
     
     def get_queryset(self):
+        """
+        Retourne les tâches accessibles selon le rôle :
+        - Junior/Senior : Ses tâches assignées + tâches ouvertes (non assignées)
+        - Lead+ : Toutes les tâches
+        """
         user = self.request.user
         queryset = Task.objects.all()
         
-        # Filtrage par projet
+        # Filtrage par projet si paramètre fourni
         project_id = self.request.query_params.get('project', None)
         if project_id is not None:
             queryset = queryset.filter(project_id=project_id)
-            # Si filtré par projet, retourner TOUTES les tâches du projet
-            # (pour que les membres voient toutes les tâches)
+            # Si filtré par projet, retourner toutes les tâches du projet
             return queryset
         
         # Sans filtre projet : permissions selon rôle
         if user.is_superuser or user.profile.role in ['lead', 'admin']:
             return queryset
         
-        # Junior/Senior sans filtre projet : leurs tâches + ouvertes
+        # Junior/Senior : leurs tâches + ouvertes
         return queryset.filter(
             Q(assigned_to=user) | Q(assigned_to__isnull=True)
         ).distinct()
@@ -59,21 +59,23 @@ class TaskViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
     
     def destroy(self, request, *args, **kwargs):
-        """Supprimer une tâche"""
+        """Supprimer une tâche (Lead+ uniquement)"""
         if not request.user.is_superuser and request.user.profile.role not in ['lead', 'admin']:
             return Response(
-                {'error': 'Vous ne pouvez pas supprimer de tâches.'},
+                {'error': 'Seuls les Lead+ peuvent supprimer des tâches.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
         return super().destroy(request, *args, **kwargs)
     
+    # ===== ACTIONS MÉTIER =====
+    
     @action(detail=True, methods=['post'])
     def assign(self, request, pk=None):
-        """Assigner une tâche à un utilisateur"""
+        """Assigner une tâche à un utilisateur (Lead+ uniquement)"""
         if not request.user.is_superuser and request.user.profile.role not in ['lead', 'admin']:
             return Response(
-                {'error': 'Vous ne pouvez pas assigner de tâches.'},
+                {'error': 'Seuls les Lead+ peuvent assigner des tâches.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -90,17 +92,17 @@ class TaskViewSet(viewsets.ModelViewSet):
             
             return Response({
                 'message': f'Tâche assignée à {user.username}',
-                'task': TaskDetailSerializer(task).data
+                'task': TaskSerializer(task).data
             }, status=status.HTTP_200_OK)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])
     def unassign(self, request, pk=None):
-        """Retirer l'assignation d'une tâche"""
+        """Retirer l'assignation d'une tâche (Lead+ uniquement)"""
         if not request.user.is_superuser and request.user.profile.role not in ['lead', 'admin']:
             return Response(
-                {'error': 'Vous ne pouvez désassigner de tâches.'},
+                {'error': 'Seuls les Lead+ peuvent désassigner des tâches.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -118,7 +120,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         
         return Response({
             'message': 'Assignation retirée',
-            'task': TaskDetailSerializer(task).data
+            'task': TaskSerializer(task).data
         }, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'])
@@ -138,11 +140,11 @@ class TaskViewSet(viewsets.ModelViewSet):
         if not request.user.is_superuser and request.user.profile.role not in ['lead', 'admin']:
             if task.assigned_to != request.user:
                 return Response(
-                    {'error': 'Vous ne pouvez changer le statut.'},
+                    {'error': 'Seul l\'assigné ou Lead+ peut changer le statut.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
         
-        # Si terminée, ajouter date de complétion
+        # Si on passe à "terminee", ajouter la date de complétion
         if new_status == 'terminee' and task.status != 'terminee':
             from django.utils import timezone
             task.completed_date = timezone.now().date()
@@ -152,20 +154,30 @@ class TaskViewSet(viewsets.ModelViewSet):
         
         return Response({
             'message': f'Statut changé en "{new_status}"',
-            'task': TaskDetailSerializer(task).data
+            'task': TaskSerializer(task).data
         }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'])
     def my_tasks(self, request):
+        """Récupérer uniquement les tâches assignées à l'utilisateur connecté"""
+        tasks = Task.objects.filter(assigned_to=request.user)
+        serializer = self.get_serializer(tasks, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def by_project(self, request):
         """
-        Récupérer les tâches accessibles
-        - Superuser : TOUTES les tâches
-        - Autres : Seulement leurs tâches assignées
+        Filtrer les tâches par projet
+        Query param : ?project_id=1
         """
-        if request.user.is_superuser:
-            tasks = Task.objects.all()
-        else:
-            tasks = Task.objects.filter(assigned_to=request.user)
+        project_id = request.query_params.get('project_id')
         
-        serializer = TaskListSerializer(tasks, many=True)
+        if not project_id:
+            return Response(
+                {'error': 'Le paramètre project_id est requis.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tasks = self.get_queryset().filter(project_id=project_id)
+        serializer = self.get_serializer(tasks, many=True)
         return Response(serializer.data)

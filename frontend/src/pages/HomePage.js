@@ -17,8 +17,8 @@ const HomePage = () => {
         <div className="home-page__feature">
           <h3>Gestion de projet</h3>
           <p>
-            ShareTech est une application développé spécifiquement pour
-            l'enteprise Memory. Venez partagez et travailler ensemble.
+            ShareTech est une application développée spécifiquement pour
+            l'enteprise Memory. Venez partager et travailler ensemble.
           </p>
         </div>
       </div>

@@ -312,14 +312,10 @@ const ProjectShowPage = () => {
                           onClick={() => toggleNote(note.id)}
                         >
                           <h4>{note.title}</h4>
-                          <p className="note-excerpt">
-                            {note.content?.substring(0, 150)}
-                            {note.content?.length > 150 ? "..." : ""}
-                          </p>
                           <small className="note-meta">
-                            {note.author_username} | {" "}
-                            {new Date(note.created_at).toLocaleDateString()} |
-                             {note.commentsCount || 0} commentaire
+                            {note.author_username} |{" "}
+                            {new Date(note.created_at).toLocaleDateString()} |{" "}
+                            {note.commentsCount || 0} commentaire
                             {note.commentsCount !== 1 ? "s" : ""}
                           </small>
                         </div>
@@ -327,7 +323,7 @@ const ProjectShowPage = () => {
                         {expandedNoteId === note.id && (
                           <div className="note-card__expanded">
                             <div className="note-content-header">
-                              <h3>{note.title}</h3>
+                              <h3></h3>
                               {canEditNote(note) && (
                                 <div className="note-actions">
                                   <button
