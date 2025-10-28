@@ -34,15 +34,17 @@ class CommentViewSet(viewsets.ModelViewSet):
             'message': 'Utilisez /api/notes/{note_id}/comments/ pour créer un commentaire.'
         }, status=status.HTTP_400_BAD_REQUEST)
     
+    # mise à jour du commentaire
     def update(self, request, *args, **kwargs):
-        """Modifier un commentaire (auteur ou admin uniquement)"""
+        """Modifier un commentaire"""
         comment = self.get_object()
         
-        # Vérifier les permissions
-        if request.user.profile.role != 'admin':
-            if comment.author != request.user:
+        # Vérifier les permissions : auteur ou Senior
+        if comment.author != request.user:
+            user_role = request.user.profile.role
+            if user_role not in ['senior', 'lead', 'admin']:
                 return Response(
-                    {'error': 'Vous ne pouvez modifier que vos propres commentaires.'},
+                    {'error': 'Seul l\'auteur ou un Senior+ peut modifier ce commentaire.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
         
