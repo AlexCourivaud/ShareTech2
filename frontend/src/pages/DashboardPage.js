@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import Navbar from '../components/layout/Navbar';
-import projectService from '../services/projectService';
-import taskService from '../services/taskService';
-import '../styles/pages/dashboard.css';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import Navbar from "../components/layout/Navbar";
+import projectService from "../services/projectService";
+import taskService from "../services/taskService";
+import "../styles/pages/dashboard.css";
 
 const DashboardPage = () => {
   const { user } = useAuth();
@@ -20,7 +20,7 @@ const DashboardPage = () => {
   const loadData = async () => {
     try {
       setError(null);
-      
+
       // Charger projets
       const projectsData = await projectService.getAll();
       setProjects(projectsData);
@@ -30,47 +30,48 @@ const DashboardPage = () => {
         const tasksData = await taskService.getMyTasks();
         setTasks(tasksData);
       } catch (taskError) {
-        console.warn('Impossible de charger les tâches:', taskError);
+        console.warn("Impossible de charger les tâches:", taskError);
         setTasks([]);
       }
-
     } catch (error) {
-      console.error('Erreur chargement données:', error);
-      setError('Impossible de charger les données');
+      console.error("Erreur chargement données:", error);
+      setError("Impossible de charger les données");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return (
-    <div className="dashboard-page">
-      <Navbar />
-      <div className="dashboard-page__container">
-        <p>Chargement...</p>
+  if (loading)
+    return (
+      <div className="dashboard-page">
+        <Navbar />
+        <div className="dashboard-page__container">
+          <p>Chargement...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
 
-  if (error) return (
-    <div className="dashboard-page">
-      <Navbar />
-      <div className="dashboard-page__container">
-        <p style={{ color: 'red' }}>{error}</p>
+  if (error)
+    return (
+      <div className="dashboard-page">
+        <Navbar />
+        <div className="dashboard-page__container">
+          <p style={{ color: "red" }}>{error}</p>
+        </div>
       </div>
-    </div>
-  );
+    );
 
   return (
     <div className="dashboard-page">
       <Navbar />
-      
+
       <div className="dashboard-page__container">
         <h1>Bienvenue, {user?.username} !</h1>
-        
+
         <div className="dashboard-page__grid">
           {/* Colonne 1 : Favoris */}
           <div className="dashboard-page__column">
-            <h2>⭐ Vos Favoris</h2>
+            <h2>Vos Favoris</h2>
             <div className="dashboard-page__card">
               <p className="text-muted">Aucun favori</p>
             </div>
@@ -78,10 +79,10 @@ const DashboardPage = () => {
 
           {/* Colonne 2 : Tâches */}
           <div className="dashboard-page__column">
-            <h2>✅ Vos Tâches ({tasks.length})</h2>
+            <h2>Vos Tâches ({tasks.length})</h2>
             <div className="dashboard-page__card">
               {tasks.length > 0 ? (
-                tasks.map(task => (
+                tasks.map((task) => (
                   <div key={task.id} className="task-item">
                     <h4>{task.title}</h4>
                     <span className={`badge badge--${task.status}`}>
@@ -97,12 +98,12 @@ const DashboardPage = () => {
 
           {/* Colonne 3 : Projets */}
           <div className="dashboard-page__column">
-            <h2>📁 Vos Projets ({projects.length})</h2>
+            <h2>Vos Projets ({projects.length})</h2>
             <div className="dashboard-page__card">
               {projects.length > 0 ? (
-                projects.map(project => (
-                  <Link 
-                    key={project.id} 
+                projects.map((project) => (
+                  <Link
+                    key={project.id}
                     to={`/projects/${project.id}`}
                     className="project-item"
                   >

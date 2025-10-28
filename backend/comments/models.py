@@ -1,3 +1,5 @@
+# backend/projects/models.py
+
 from django.db import models
 from django.contrib.auth.models import User
 from notes.models import Note
@@ -17,8 +19,10 @@ class Comment(models.Model):
     
     author = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
-        related_name='authored_comments',
+        on_delete=models.SET_NULL, 
+        null=True,
+        blank=True,
+        related_name='comments',
         verbose_name='Auteur'
     )
     
@@ -31,11 +35,20 @@ class Comment(models.Model):
         verbose_name='Commentaire parent'
     )
     
-    is_edited = models.BooleanField(default=False, verbose_name='Modifié')
-    like_count = models.IntegerField(default=0, verbose_name='Likes')
+    is_edited = models.BooleanField(
+        default=False,
+        verbose_name='Modifié'
+    )
     
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Créé le')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='Modifié le')
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Créé le'
+    )
+    
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Modifié le'
+    )
     
     class Meta:
         db_table = 'comment'
@@ -44,4 +57,6 @@ class Comment(models.Model):
         ordering = ['created_at']
     
     def __str__(self):
-        return f"Commentaire de {self.author.username} sur {self.note.title}"
+        author_name = self.author.username if self.author else '[Compte supprimé]'
+        preview = self.content[:50]
+        return f"{author_name} - {preview}"

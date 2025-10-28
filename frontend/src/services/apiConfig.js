@@ -1,3 +1,5 @@
+// frontend/src/services/apiConfig.js
+
 import axios from 'axios';
 
 // URL de base de l'API backend

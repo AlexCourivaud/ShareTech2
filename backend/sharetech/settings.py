@@ -1,3 +1,5 @@
+# ceci est la page : backend/sharetech/settings.py
+
 """
 Django settings for sharetech project.
 

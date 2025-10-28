@@ -20,21 +20,20 @@ from accounts.permissions import IsLeadOrAdmin
 class ProjectViewSet(viewsets.ModelViewSet):
     """
     ViewSet pour gérer les projets
-    
-    Permissions :
-    - Liste/Détail : Tous les utilisateurs authentifiés
-    - Création : Lead et Admin uniquement
-    - Modification/Suppression : Lead et Admin uniquement
+    - Liste/Détail
+    - Création
+    - Modification
+    - Suppression
     """
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """
-        Retourne les projets accessibles par l'utilisateur
-        - Projets dont il est membre
-        - Projets qu'il a créés
-        """
         user = self.request.user
+        
+        # Superuser voit tout
+        if user.is_superuser:
+            return Project.objects.all()
+        
         return Project.objects.filter(
             Q(members__user=user) | Q(created_by=user)
         ).distinct()

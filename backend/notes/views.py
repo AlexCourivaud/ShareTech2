@@ -4,12 +4,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 
-from .models import Note, NoteTag
-from .serializers import (
-    NoteListSerializer,
-    NoteDetailSerializer,
-    NoteCreateUpdateSerializer
-)
+from .models import Note
+from .serializers import NoteSerializer
 
 
 class NoteViewSet(viewsets.ModelViewSet):
@@ -17,51 +13,33 @@ class NoteViewSet(viewsets.ModelViewSet):
     ViewSet pour gérer les notes
     
     Permissions :
-    - Liste/Détail : Tous les utilisateurs authentifiés (membres du projet)
+    - Liste/Détail : Tous les utilisateurs authentifiés
     - Création : Tous les utilisateurs authentifiés
     - Modification : Auteur ou Senior+
-    - Suppression : Auteur ou Senior+
+    - Suppression : Auteur ou Admin
     """
     permission_classes = [IsAuthenticated]
+    serializer_class = NoteSerializer
     
     def get_queryset(self):
         """
         Retourne les notes accessibles par l'utilisateur
-        - Notes des projets dont il est membre
-        - Notes qu'il a créées
         """
         user = self.request.user
         return Note.objects.filter(
             Q(project__members__user=user) | Q(author=user)
         ).distinct().select_related('author', 'project').prefetch_related('note_tags__tag')
     
-    def get_serializer_class(self):
-        """
-        Utilise différents serializers selon l'action
-        """
-        if self.action == 'list':
-            return NoteListSerializer
-        elif self.action in ['create', 'update', 'partial_update']:
-            return NoteCreateUpdateSerializer
-        else:
-            return NoteDetailSerializer
-    
     def perform_create(self, serializer):
-        """
-        Définit automatiquement l'auteur lors de la création
-        """
+        """Définit automatiquement l'auteur lors de la création"""
         serializer.save(author=self.request.user)
     
     def update(self, request, *args, **kwargs):
-        """
-        Mise à jour d'une note (PUT/PATCH)
-        Vérifie que l'utilisateur peut modifier
-        """
+        """Mise à jour d'une note - Vérifie les permissions"""
         note = self.get_object()
         
-        # Vérifier les permissions : auteur ou Senior+
+        # Vérifier : auteur ou Senior+
         if note.author != request.user:
-            # Vérifier si Senior+
             user_role = request.user.profile.role
             if user_role not in ['senior', 'lead', 'admin']:
                 return Response(
@@ -72,18 +50,14 @@ class NoteViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
     
     def destroy(self, request, *args, **kwargs):
-        """
-        Suppression d'une note
-        Vérifie que l'utilisateur peut supprimer
-        """
+        """Suppression d'une note - Vérifie les permissions"""
         note = self.get_object()
         
-        # Vérifier les permissions : auteur ou Senior+
+        # Vérifier : auteur ou Admin
         if note.author != request.user:
-            user_role = request.user.profile.role
-            if user_role not in ['senior', 'lead', 'admin']:
+            if request.user.profile.role != 'admin':
                 return Response(
-                    {'detail': 'Vous ne pouvez supprimer que vos propres notes.'},
+                    {'detail': 'Seul l\'auteur ou un admin peut supprimer cette note.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
         
@@ -91,48 +65,69 @@ class NoteViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def my_notes(self, request):
-        """
-        GET /api/notes/my_notes/
-        Retourne uniquement les notes créées par l'utilisateur
-        """
-        notes = Note.objects.filter(author=request.user).select_related('author', 'project')
-        serializer = NoteListSerializer(notes, many=True)
+        """Retourne uniquement les notes de l'utilisateur connecté"""
+        notes = self.get_queryset().filter(author=request.user)
+        serializer = self.get_serializer(notes, many=True)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def by_project(self, request):
-        """
-        GET /api/notes/by_project/?project_id=1
-        Retourne les notes d'un projet spécifique
-        """
-        project_id = request.query_params.get('project_id')
-        
+        """Filtre les notes par projet"""
+        project_id = request.query_params.get('project')
         if not project_id:
             return Response(
-                {'detail': 'project_id requis'},
+                {'error': 'Paramètre project requis'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         notes = self.get_queryset().filter(project_id=project_id)
-        serializer = NoteListSerializer(notes, many=True)
+        serializer = self.get_serializer(notes, many=True)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def search(self, request):
-        """
-        GET /api/notes/search/?q=python
-        Recherche dans les titres et contenus
-        """
+        """Recherche full-text dans les notes"""
         query = request.query_params.get('q', '')
-        
-        if not query:
+        if len(query) < 2:
             return Response(
-                {'detail': 'Paramètre q requis'},
+                {'error': 'Requête trop courte (min 2 caractères)'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         notes = self.get_queryset().filter(
             Q(title__icontains=query) | Q(content__icontains=query)
         )
-        serializer = NoteListSerializer(notes, many=True)
+        serializer = self.get_serializer(notes, many=True)
         return Response(serializer.data)
+    
+
+    @action(detail=True, methods=['get', 'post'])
+    def comments(self, request, pk=None):
+        """
+        GET  /api/notes/{id}/comments/  - Liste les commentaires racines
+        POST /api/notes/{id}/comments/  - Créer un commentaire
+        """
+        note = self.get_object()
+        
+        if request.method == 'GET':
+            from comments.models import Comment
+            from comments.serializers import CommentSerializer
+            
+            # Récupérer uniquement les commentaires racines (sans parent)
+            comments = Comment.objects.filter(note=note, parent_comment__isnull=True)
+            serializer = CommentSerializer(comments, many=True)
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+            from comments.models import Comment
+            from comments.serializers import CommentWriteSerializer, CommentSerializer
+            
+            serializer = CommentWriteSerializer(data=request.data)
+            if serializer.is_valid():
+                comment = serializer.save(author=request.user, note=note)
+                return Response(
+                    CommentSerializer(comment).data,
+                    status=status.HTTP_201_CREATED
+                )
+            
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
