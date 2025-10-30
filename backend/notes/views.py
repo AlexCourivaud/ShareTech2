@@ -5,8 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 
 from .models import Note
-from .serializers import NoteSerializer
-
+from .serializers import NoteSerializer, NoteCreateSerializer, NoteUpdateSerializer  
 
 class NoteViewSet(viewsets.ModelViewSet):
     """
@@ -20,6 +19,13 @@ class NoteViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [IsAuthenticated]
     serializer_class = NoteSerializer
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return NoteCreateSerializer  # ← CREATE : project en écriture
+        elif self.action in ['update', 'partial_update']:
+            return NoteUpdateSerializer  # ← UPDATE : project non modifiable
+        return NoteSerializer  # ← Par défaut
     
     def get_queryset(self):
         """

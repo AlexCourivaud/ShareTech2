@@ -25,7 +25,8 @@ function CommentSection({ noteId }) {
 
   const handleNewComment = async (content) => {
     const newComment = await commentService.createComment(noteId, content);
-    setComments([...comments, newComment]);
+    // Recharger tous les commentaires pour avoir la structure complète
+    loadComments();
   };
 
   if (loading) {
@@ -36,7 +37,7 @@ function CommentSection({ noteId }) {
 
   return (
     <div className="comment-section">
-      <h3>💬 Commentaires ({comments.length})</h3>
+      <h3>Commentaires ({comments.length})</h3>
 
       <CommentForm onSubmit={handleNewComment} />
 

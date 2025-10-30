@@ -133,6 +133,13 @@ const ProjectShowPage = () => {
   // CRÉATION
   const handleCreateNote = async (e) => {
     e.preventDefault();
+    console.log("🔥 handleCreateNote appelé");  // ← Combien de fois ?
+
+    console.log("🔍 DEBUG - Project ID:", id);  // ← AJOUTER
+    console.log("🔍 DEBUG - Type de ID:", typeof id);  // ← AJOUTER
+    console.log("🔍 DEBUG - createFormData:", createFormData);  // ← AJOUTER
+    console.log("📋 createFormData AVANT appel:", createFormData);  // ← AJOUTER
+
 
     if (!createFormData.title.trim() || !createFormData.content.trim()) {
       alert("Titre et contenu requis");
