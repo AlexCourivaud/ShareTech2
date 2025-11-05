@@ -53,3 +53,5 @@ env/
 #assets 
 assets/
 /assets
+
+.claude/

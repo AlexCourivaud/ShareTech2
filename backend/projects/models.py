@@ -140,4 +140,4 @@ class ProjectMember(models.Model):
     # Représentation textuelle dans l'admin et les logs
     # Affiche "username - Nom du projet (Rôle)"
     def __str__(self):
-        return f"{self.user.username} - {self.project.name} ({self.get_role_project_display()})"
+        return f"{self.user.username} - {self.project.name} ({self.user.profile.get_role_display()})"

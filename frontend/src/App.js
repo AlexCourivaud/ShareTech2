@@ -11,6 +11,8 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProjectShowPage from "./pages/ProjectShowPage";
+import NoteShowPage from './pages/NoteShowPage';
+
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -41,6 +43,8 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route path="/notes/:id" element={<NoteShowPage />} />
+
         </Routes>
       </Router>
     </AuthProvider>

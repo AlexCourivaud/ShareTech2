@@ -1,0 +1,403 @@
+/* ============================================
+   NOTE SHOW PAGE - Styles
+   Layout: 2/3 (note + commentaires) - 1/3 (sidebar)
+   ============================================ */
+@import '../markdown-content.css';
+
+.note-show-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.note-show-page__container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.note-show-page__loading,
+.note-show-page__error {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #666;
+}
+
+/* ============================================
+   LAYOUT PRINCIPAL - 2/3 et 1/3
+   ============================================ */
+
+.note-show-page__layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* 2/3 - 1/3 */
+  gap: 2rem;
+  align-items: start;
+}
+
+/* ============================================
+   PARTIE GAUCHE - Note principale
+   ============================================ */
+
+.note-show-page__main {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* En-tête de la note */
+.note-header {
+  padding: 2rem;
+  border-bottom: 1px solid #e5e5e5;
+  position: relative;
+}
+
+.note-header__title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.3;
+}
+
+.note-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.note-header__author {
+  color: #4a90e2;
+  font-weight: 500;
+}
+
+.note-header__separator {
+  color: #ccc;
+}
+
+.note-header__date {
+  color: #666;
+}
+
+.note-header__edited {
+  color: #999;
+  font-style: italic;
+}
+
+.note-header__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Contenu de la note */
+.note-content {
+  padding: 2rem;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.note-content p {
+  margin-bottom: 1rem;
+}
+
+/* Section commentaires */
+.note-comments {
+  padding: 2rem;
+  border-top: 1px solid #e5e5e5;
+}
+
+/* ============================================
+   PARTIE DROITE - Sidebar
+   ============================================ */
+
+.note-show-page__sidebar {
+  position: sticky;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sidebar-section {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.sidebar-section__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 1rem 0;
+}
+
+/* Info projet */
+.project-info__name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 0.5rem 0;
+}
+
+.project-info__description {
+  font-size: 0.875rem;
+  color: #666;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Membres */
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.member-name {
+  font-size: 0.875rem;
+  color: #333;
+}
+
+/* Formulaire création note mini */
+.create-note-form {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 6px;
+}
+
+.create-note-input,
+.create-note-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  margin-bottom: 0.75rem;
+}
+
+.create-note-input:focus,
+.create-note-textarea:focus {
+  outline: none;
+  border-color: #4a90e2;
+}
+
+.create-note-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.create-note-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Liste des notes */
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.note-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.note-item:hover {
+  background-color: #f5f5f5;
+}
+
+.note-item--current {
+  background-color: #e8f4ff;
+  cursor: default;
+}
+
+.note-item--current:hover {
+  background-color: #e8f4ff;
+}
+
+.note-item__icon {
+  font-size: 1rem;
+  color: #999;
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.note-item--current .note-item__icon {
+  color: #4a90e2;
+}
+
+.note-item__title {
+  font-size: 0.875rem;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-item--current .note-item__title {
+  font-weight: 600;
+  color: #4a90e2;
+}
+
+/* Messages vides */
+.empty-message {
+  font-size: 0.875rem;
+  color: #999;
+  text-align: center;
+  padding: 1rem;
+  margin: 0;
+}
+
+/* ============================================
+   BOUTONS
+   ============================================ */
+
+.btn-edit,
+.btn-delete,
+.btn-save-mini,
+.btn-cancel-mini,
+.btn-create-mini {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-edit {
+  background-color: #4a90e2;
+  color: white;
+}
+
+.btn-edit:hover {
+  background-color: #357abd;
+}
+
+.btn-delete {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-delete:hover {
+  background-color: #dc2626;
+}
+
+.btn-save-mini {
+  background-color: #10b981;
+  color: white;
+  flex: 1;
+}
+
+.btn-save-mini:hover {
+  background-color: #059669;
+}
+
+.btn-cancel-mini {
+  background-color: #6b7280;
+  color: white;
+  flex: 1;
+}
+
+.btn-cancel-mini:hover {
+  background-color: #4b5563;
+}
+
+.btn-create-mini {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background-color: #4a90e2;
+  color: white;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-create-mini:hover {
+  background-color: #357abd;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 1024px) {
+  .note-show-page__layout {
+    grid-template-columns: 1fr; /* Une seule colonne sur mobile */
+  }
+
+  .note-show-page__sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .note-show-page__container {
+    padding: 1rem 0.5rem;
+  }
+
+  .note-header {
+    padding: 1.5rem;
+  }
+
+  .note-header__title {
+    font-size: 1.5rem;
+  }
+
+  .note-content {
+    padding: 1.5rem;
+  }
+
+  .note-comments {
+    padding: 1.5rem;
+  }
+
+  .sidebar-section {
+    padding: 1rem;
+  }
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import projectService from "../services/projectService";
 import noteService from "../services/noteService";
@@ -373,17 +373,30 @@ const handleCreateTask = async (e) => {
                     ) : (
                       // MODE AFFICHAGE
                       <>
-                        <div
-                          className="note-card__header"
-                          onClick={() => toggleNote(note.id)}
+                        <div className="note-card__header-wrapper">
+                          <div
+                            className="note-card__header"
+                            onClick={() => toggleNote(note.id)}
+                          >
+                            <h4>{note.title}</h4>
+                            <small className="note-meta">
+                              {note.author_username} |{" "}
+                              {new Date(note.created_at).toLocaleDateString()} |{" "}
+                              {note.commentsCount || 0} commentaire
+                              {note.commentsCount !== 1 ? "s" : ""}
+                            </small>
+                          </div>
+                          
+                        <Link 
+                          to={`/notes/${note.id}`} 
+                          className="btn-details"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sessionStorage.setItem('currentProject', JSON.stringify(project));
+                          }}
                         >
-                          <h4>{note.title}</h4>
-                          <small className="note-meta">
-                            {note.author_username} |{" "}
-                            {new Date(note.created_at).toLocaleDateString()} |{" "}
-                            {note.commentsCount || 0} commentaire
-                            {note.commentsCount !== 1 ? "s" : ""}
-                          </small>
+                            Détails →
+                          </Link>
                         </div>
 
                         {expandedNoteId === note.id && (
@@ -614,4 +627,4 @@ const handleCreateTask = async (e) => {
   );
 };
 
-export default ProjectShowPage; 
+export default ProjectShowPage;

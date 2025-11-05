@@ -82,18 +82,29 @@ def profile_view(request):
     
     elif request.method == 'PUT':
         serializer = UserSerializer(request.user, data=request.data, partial=True)
-        
+
         if serializer.is_valid():
             serializer.save()
-            
+
             # Mettre à jour le profil si des données sont fournies
             profile_data = request.data.get('profile', {})
             if profile_data:
                 profile = request.user.profile
-                profile.role = profile_data.get('role', profile.role)
-                profile.avatar_url = profile_data.get('avatar_url', profile.avatar_url)
+
+                # SÉCURITÉ: Seuls les admins peuvent modifier les rôles
+                if 'role' in profile_data:
+                    if request.user.profile.role != 'admin':
+                        return Response({
+                            'error': 'Seuls les administrateurs peuvent modifier les rôles'
+                        }, status=status.HTTP_403_FORBIDDEN)
+                    profile.role = profile_data.get('role')
+
+                # Avatar peut être modifié par n'importe qui
+                if 'avatar_url' in profile_data:
+                    profile.avatar_url = profile_data.get('avatar_url')
+
                 profile.save()
-            
+
             return Response(UserSerializer(request.user).data)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

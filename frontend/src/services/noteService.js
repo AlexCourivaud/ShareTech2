@@ -6,6 +6,11 @@ const noteService = {
     return response.data;
   },
 
+  getById: async (id) => {
+    const response = await api.get(`/api/notes/${id}/`);
+    return response.data;
+  },
+
   getByProject: async (projectId) => {
     const response = await api.get(`api/notes/?project=${projectId}`);
     return response.data;

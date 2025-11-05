@@ -1,0 +1,198 @@
+/* ============================================
+   STYLES MARKDOWN - Contenu formaté
+   ============================================ */
+
+/* Style général pour le contenu Markdown */
+.note-content,
+.comment-content,
+.project-description {
+  line-height: 1.8 !important;
+  color: #333 !important;
+}
+
+/* Titres dans le Markdown */
+.note-content h1,
+.comment-content h1 {
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  margin: 1.5rem 0 1rem 0 !important;
+  color: #1a1a1a !important;
+  border-bottom: 2px solid #e5e5e5 !important;
+  padding-bottom: 0.5rem !important;
+  display: block !important;
+}
+
+.note-content h2,
+.comment-content h2 {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  margin: 1.25rem 0 0.75rem 0 !important;
+  color: #1a1a1a !important;
+  display: block !important;
+}
+
+.note-content h3,
+.comment-content h3 {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin: 1rem 0 0.5rem 0 !important;
+  color: #333 !important;
+  display: block !important;
+}
+
+/* Paragraphes */
+.note-content p,
+.comment-content p {
+  margin-bottom: 1rem !important;
+  display: block !important;
+}
+
+/* Listes */
+.note-content ul,
+.note-content ol,
+.comment-content ul,
+.comment-content ol {
+  margin: 1rem 0 !important;
+  padding-left: 2rem !important;
+  display: block !important;
+}
+
+.note-content li,
+.comment-content li {
+  margin-bottom: 0.5rem !important;
+  display: list-item !important;
+}
+
+.note-content ul li {
+  list-style-type: disc !important;
+}
+
+.note-content ol li {
+  list-style-type: decimal !important;
+}
+
+/* Code inline */
+.note-content code,
+.comment-content code {
+  background-color: #f5f5f5 !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 3px !important;
+  padding: 0.2rem 0.4rem !important;
+  font-family: 'Courier New', Courier, monospace !important;
+  font-size: 0.9em !important;
+  color: #d63384 !important;
+  display: inline !important;
+}
+
+/* Blocs de code */
+.note-content pre,
+.comment-content pre {
+  background-color: #f8f9fa !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 6px !important;
+  padding: 1rem !important;
+  overflow-x: auto !important;
+  margin: 1rem 0 !important;
+  display: block !important;
+}
+
+.note-content pre code,
+.comment-content pre code {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  color: #333 !important;
+  font-size: 0.875rem !important;
+  line-height: 1.6 !important;
+  display: block !important;
+}
+
+/* Liens */
+.note-content a,
+.comment-content a {
+  color: #4a90e2 !important;
+  text-decoration: none !important;
+  border-bottom: 1px solid transparent !important;
+  transition: border-color 0.2s !important;
+}
+
+.note-content a:hover,
+.comment-content a:hover {
+  border-bottom-color: #4a90e2 !important;
+}
+
+/* Citations */
+.note-content blockquote,
+.comment-content blockquote {
+  border-left: 4px solid #4a90e2 !important;
+  padding-left: 1rem !important;
+  margin: 1rem 0 !important;
+  color: #666 !important;
+  font-style: italic !important;
+  background-color: #f8f9fa !important;
+  padding: 0.75rem 1rem !important;
+  border-radius: 4px !important;
+  display: block !important;
+}
+
+/* Tableaux */
+.note-content table,
+.comment-content table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  margin: 1rem 0 !important;
+  display: table !important;
+}
+
+.note-content th,
+.note-content td,
+.comment-content th,
+.comment-content td {
+  border: 1px solid #e5e5e5 !important;
+  padding: 0.75rem !important;
+  text-align: left !important;
+}
+
+.note-content th,
+.comment-content th {
+  background-color: #f8f9fa !important;
+  font-weight: 600 !important;
+}
+
+/* Séparateur horizontal */
+.note-content hr,
+.comment-content hr {
+  border: none !important;
+  border-top: 2px solid #e5e5e5 !important;
+  margin: 2rem 0 !important;
+  display: block !important;
+}
+
+/* Gras et italique */
+.note-content strong,
+.comment-content strong {
+  font-weight: 700 !important;
+  color: #1a1a1a !important;
+}
+
+.note-content em,
+.comment-content em {
+  font-style: italic !important;
+}
+
+/* Images dans le Markdown */
+.note-content img,
+.comment-content img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 4px !important;
+  margin: 1rem 0 !important;
+  display: block !important;
+}
+
+/* Style pour le texte préformaté (conserve les espaces et retours à la ligne) */
+.note-content,
+.comment-content {
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+}

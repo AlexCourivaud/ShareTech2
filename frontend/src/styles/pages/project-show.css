@@ -1,4 +1,6 @@
 /* === LAYOUT PRINCIPAL === */
+@import '../markdown-content.css';
+
 .project-show-page {
   min-height: 100vh;
   background-color: #f9fafb;
@@ -578,6 +580,67 @@
 
   .btn-edit,
   .btn-delete {
+    width: 100%;
+  }
+}
+
+
+/* ============================================
+   Ajout pour le bouton "Détails" dans les notes
+   À ajouter dans project-show.css
+   ============================================ */
+
+/* Wrapper pour l'en-tête de note avec bouton détails */
+.note-card__header-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.note-card__header {
+  flex: 1;
+  cursor: pointer;
+}
+
+.note-card__header:hover h4 {
+  color: #4a90e2;
+}
+
+/* Bouton Détails */
+.btn-details {
+  padding: 0.5rem 1rem;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-details:hover {
+  background-color: #357abd;
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .note-card__header-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .btn-details {
     width: 100%;
   }
 }
